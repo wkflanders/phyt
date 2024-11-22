@@ -14,7 +14,7 @@ const RootLayout = () => {
         "Inconsolata-Regular": require("../assets/fonts/Inconsolata-Regular.ttf"),
         "Inconsolata-Medium": require("../assets/fonts/Inconsolata-Medium.ttf"),
         "Inconsolata-Bold": require("../assets/fonts/Inconsolata-Bold.ttf"),
-        "Inconsolata-Semibold": require("../assets/fonts/Inconsolata-SemiBold.ttf"),
+        "Inconsolata-SemiBold": require("../assets/fonts/Inconsolata-SemiBold.ttf"),
         "Inconsolata-ExtraBold": require("../assets/fonts/Inconsolata-ExtraBold.ttf"),
         "Inconsolata-Black": require("../assets/fonts/Inconsolata-Black.ttf"),
     });
@@ -28,7 +28,7 @@ const RootLayout = () => {
 
     return (
         <Stack>
-            <Stack.Screen name="index" />
+            <Stack.Screen name="index" options={{ headerShown: false }} />
         </Stack>
     );
 };

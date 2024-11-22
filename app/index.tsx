@@ -1,12 +1,18 @@
-import { View, Text } from 'react-native';
-import React from 'react';
+import { View, Text, ScrollView, Image } from 'react-native';
+import { Link } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const index = () => {
+export default function App() {
     return (
-        <View>
-            <Text className="bg-red-500">index</Text>
-        </View>
+        <SafeAreaView className="bg-phyt_blue">
+            <ScrollView contentContainerStyle={{ height: '100%' }}>
+                <View className="w-full flex justify-center items-center h-full px-4">
+                    <Image
+                        src=''
+                        className=''
+                    />
+                </View>
+            </ScrollView>
+        </SafeAreaView>
     );
 };
-
-export default index;

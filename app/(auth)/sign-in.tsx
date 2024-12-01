@@ -1,7 +1,5 @@
 import { useState } from 'react';
 
-import { supabase } from '@/lib/supabase';
-
 import { Alert, View, Text, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
@@ -20,12 +18,7 @@ const SignIn = () => {
 
     const signInWithEmail = async () => {
         setIsSubmitting(true);
-        const { error } = await supabase.auth.signInWithPassword({
-            email: form.email,
-            password: form.password
-        });
 
-        if (error) Alert.alert(error.message);
         setIsSubmitting(false);
     };
 

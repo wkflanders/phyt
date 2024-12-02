@@ -15,16 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.capella.phyt",
-      "googleServicesFile": "./ios/GoogleService-Info.plist"
+      "bundleIdentifier": "com.capella.phyt"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.capella.phyt",
-      "googleServicesFile": "./android/google-services.json"
+      "package": "com.capella.phyt"
     },
     "web": {
       "bundler": "metro",

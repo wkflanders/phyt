@@ -6,6 +6,7 @@ interface ButtonProps {
     containerStyles?: string;
     textStyles?: string;
     isLoading: boolean;
+    borderRadius?: number;
 }
 
 const Button = ({
@@ -13,14 +14,15 @@ const Button = ({
     handlePress,
     containerStyles,
     textStyles,
-    isLoading
+    isLoading,
+    borderRadius = 50,
 }: ButtonProps) => {
     return (
         <TouchableOpacity
             onPress={handlePress}
             activeOpacity={0.7}
             className={`bg-phyt_red min-h-[40px] w-1/2 flex flex-row justify-center items-center ${containerStyles} ${isLoading ? "opacity-50" : ""}`}
-            style={{ borderRadius: 50 }}
+            style={{ borderRadius }}
             disabled={isLoading}
         >
             <Text className={`text-white font-incsemibold text-xl ${textStyles}`}>

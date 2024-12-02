@@ -32,12 +32,12 @@ const FormField = ({
 
     return (
         <View className={`space-y-2 ${otherStyles}`}>
-            <View className="w-full h-16 bg-white px-4 pb-2 items-center border-2 border-white focus:border-phyt_red flex-row" style={{ borderRadius: 50 }}>
+            <View className="w-full h-16 bg-phyt_form px-4 pb-2 items-center border-2 border-phyt_form_border flex-row rounded-2xl">
                 <TextInput
-                    className="flex-1 text-gray-800 text-xl font-incsemibold h-full"
+                    className="flex-1 text-phyt_blue text-xl font-incsemibold h-full"
                     value={value}
                     placeholder={placeholder}
-                    placeholderTextColor="#000"
+                    placeholderTextColor="phyt_form_placeholder"
                     onChangeText={handleChangeText}
                     secureTextEntry={isPasswordField && !showPassword}
                 />

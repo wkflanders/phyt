@@ -7,7 +7,11 @@ module.exports = {
       colors: {
         phyt_blue: "#00F6FB",
         phyt_red: "#FE205D",
-        phyt_bg: "#101010"
+        phyt_bg: "#101010",
+        phyt_text_secondary: "#777798",
+        phyt_form: "#13122A",
+        phyt_form_placeholder: "#5454BF",
+        phyt_form_text: "#ff00f7",
       },
       fontFamily: {
         incextralight: ["Inconsolata-ExtraLight"],

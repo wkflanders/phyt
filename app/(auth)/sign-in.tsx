@@ -1,46 +1,69 @@
 import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { magic } from "@/lib/magic";
 
 import { Alert, View, Text, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 
 import { images } from "@/constants";
 
 import FormField from '@/components/FormField';
 import Button from '@/components/Button';
+import { useGlobalContext } from '@/context/GlobalProvider';
 
 const SignIn = () => {
+    const { setIsLoggedIn, setUser } = useGlobalContext();
+
     const [form, setForm] = useState({
         email: '',
-        password: '',
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const signInWithEmail = async () => {
         setIsSubmitting(true);
+        try {
+            const didToken = await magic.auth.loginWithEmailOTP({
+                email: form.email,
+            });
 
-        setIsSubmitting(false);
+            if (didToken) {
+                await AsyncStorage.setItem('didToken', didToken); // Persisting token
+                const metadata = await magic.user.getMetadata();
+                setUser({ email: metadata.email! });
+                setIsLoggedIn(true);
+                router.replace('/home');
+            }
+        } catch (error) {
+            console.error('Login failed', error);
+            Alert.alert('Error', 'Login Ffailed, Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const submit = () => {
-
+        if (!form.email) {
+            Alert.alert('Error', 'Please enter your email.');
+            return;
+        }
+        signInWithEmail();
     };
 
     return (
-        <SafeAreaView className="bg-phyt_blue h-full">
+        <SafeAreaView className="bg-black h-full">
             <ScrollView>
                 <View className="justify-center min-h-[80vh]">
                     <View className="w-full justify-center items-center px-4">
-                        <Text className="color-phyt_red font-incsemibold text-2xl pb-2">
-                            welcome to
+                        <Text className="font-intersemibold color-white text-3xl">
+                            What's your email address?
                         </Text>
-                        <Image
-                            source={images.onboard_logo}
-                            className='w-[200px] h-[84px]'
-                            resizeMode="contain"
-                        />
+                        <Text className="font-intersemibold text-xl color-phyt_text_secondary text-center mt-4">
+                            We only ned your email to log you in. We keep your email private and won't send spam.
+                        </Text>
                     </View>
-                    <View className="w-full justify-center items-center px-12">
+                    <View className="w-full justify-center items-center px-2">
                         <FormField
                             title="Email"
                             value={form.email}
@@ -49,30 +72,18 @@ const SignIn = () => {
                             placeholder="EMAIL"
                             keyboardType='email-address'
                         />
-                        <FormField
-                            title="Password"
-                            value={form.password}
-                            handleChangeText={(e) => setForm({ ...form, password: e })}
-                            placeholder="PASSWORD"
-                            otherStyles="mt-5"
-                        />
-
                         <Button
-                            title="LOGIN"
+                            title="Submit"
                             handlePress={submit}
-                            containerStyles="mt-10"
+                            containerStyles="mt-20 w-full py-6 rounded-xl"
+                            textStyles="font-intersemibold"
                             isLoading={isSubmitting}
                         />
 
-                        <View className="justify-center pt-5 flex-row gap-2">
-                            <Link href="/sign-up" className="font-incsemibold color-phyt_red underline underline-offset-5">
-                                or sign up
-                            </Link>
-                        </View>
                     </View>
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 };
 

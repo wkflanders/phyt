@@ -3,9 +3,9 @@ import { View, Text } from 'react-native';
 import { SplashScreen, Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 
-import "../global.css";
+import GlobalProvider from "../context/GlobalProvider";
 
-SplashScreen.preventAutoHideAsync();
+import "../global.css";
 
 const RootLayout = () => {
     const [fontsLoaded, error] = useFonts({
@@ -29,18 +29,28 @@ const RootLayout = () => {
     });
 
     useEffect(() => {
-        if (error) throw error;
-        if (fontsLoaded) SplashScreen.hideAsync();
+        if (fontsLoaded) SplashScreen.hideAsync().catch(console.error);
+
     }, [fontsLoaded, error]);
 
-    if (!fontsLoaded && !error) return null;
+    if (!fontsLoaded) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'black' }}>
+                <Text>
+                    FAIL
+                </Text>
+            </View>
+        );
+    }
 
     return (
-        <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
+        <GlobalProvider>
+            <Stack>
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack>
+        </GlobalProvider>
     );
 };
 

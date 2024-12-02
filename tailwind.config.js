@@ -10,7 +10,8 @@ module.exports = {
         phyt_bg: "#101010",
         phyt_text_secondary: "#777798",
         phyt_form: "#13122A",
-        phyt_form_placeholder: "#5454BF",
+        phyt_form_placeholder: "#58587B",
+        phyt_form_border: "#5454BF",
         phyt_form_text: "#ff00f7",
       },
       fontFamily: {

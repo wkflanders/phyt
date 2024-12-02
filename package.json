@@ -15,6 +15,7 @@
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
     "@magic-sdk/react-native-expo": "^29.19.0",
+    "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-firebase/app": "^21.6.1",
     "@react-native-firebase/functions": "^21.6.1",
     "@react-navigation/native": "^7.0.0",

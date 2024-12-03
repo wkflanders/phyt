@@ -1,81 +1,80 @@
 import { useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { magic } from "@/lib/magic";
-
-import { Alert, View, Text, ScrollView, Image } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useLoginWithEmail } from '@privy-io/expo';
+
+import { FormField } from '@/components/FormField';
+import { FunctionalButton } from '@/components/FunctionalButton';
+import {
+    Dialog,
+    DialogContent,
+} from '@/components/ui/Dialog';
+import { ConfirmationCodeField } from '@/components/confirmation-code-field/ConfirmationCodeField';
 import { router } from 'expo-router';
 
-import { images } from "@/constants";
-
-import FormField from '@/components/FormField';
-import Button from '@/components/Button';
-import { useGlobalContext } from '@/context/GlobalProvider';
-
 const SignIn = () => {
-    const { setIsLoggedIn, setUser } = useGlobalContext();
-
-    const [form, setForm] = useState({
-        email: '',
-    });
+    const [email, setEmail] = useState('');
+    const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const { state, sendCode, loginWithCode } = useLoginWithEmail({
+        onError: (err) => {
+            console.log(err);
+            setError(JSON.stringify(err.message));
+        },
+        onLoginSuccess: (user, isNewUser) => {
+            console.log(user);
+            console.log(isNewUser);
+            router.push('/home');
+        }
+    });
 
     const signInWithEmail = async () => {
         setIsSubmitting(true);
-        try {
-            const didToken = await magic.auth.loginWithEmailOTP({
-                email: form.email,
-            });
-
-            if (didToken) {
-                await AsyncStorage.setItem('didToken', didToken); // Persisting token
-                const metadata = await magic.user.getMetadata();
-                setUser({ email: metadata.email! });
-                setIsLoggedIn(true);
-                router.replace('/home');
-            }
-        } catch (error) {
-            console.error('Login failed', error);
-            Alert.alert('Error', 'Login Ffailed, Please try again.');
-        } finally {
-            setIsSubmitting(false);
-        }
+        sendCode({ email });
+        setIsSubmitting(false);
     };
 
-    const submit = () => {
-        if (!form.email) {
-            Alert.alert('Error', 'Please enter your email.');
-            return;
-        }
-        signInWithEmail();
+    const confirmEmail = async (value: string) => {
+        loginWithCode({ code: value, email: email });
     };
 
     return (
         <SafeAreaView className="bg-black h-full">
             <ScrollView>
+                <Dialog
+                    open={state.status === 'awaiting-code-input' || state.status === 'sending-code'}
+                >
+                    <DialogContent
+                        className='w-full h-full bg-black justify-start mt-[28rem]'
+                    >
+                        <ConfirmationCodeField onCodeComplete={confirmEmail} />
+                    </DialogContent>
+                </Dialog>
                 <View className="justify-center min-h-[80vh]">
                     <View className="w-full justify-center items-center px-4">
                         <Text className="font-intersemibold color-white text-3xl">
                             What's your email address?
                         </Text>
                         <Text className="font-intersemibold text-xl color-phyt_text_secondary text-center mt-4">
-                            We only ned your email to log you in. We keep your email private and won't send spam.
+                            We only need your email to log you in. We keep your email private and won't send spam.
                         </Text>
                     </View>
                     <View className="w-full justify-center items-center px-2">
                         <FormField
                             title="Email"
-                            value={form.email}
-                            handleChangeText={(e) => setForm({ ...form, email: e })}
+                            value={email}
+                            handleChangeText={(e) => setEmail(e)}
                             otherStyles="mt-5"
                             placeholder="EMAIL"
                             keyboardType='email-address'
                         />
-                        <Button
+                        <FunctionalButton
                             title="Submit"
-                            handlePress={submit}
-                            containerStyles="mt-20 w-full py-6 rounded-xl"
+                            handlePress={signInWithEmail}
+                            containerStyles="mt-14 w-full py-6 rounded-xl"
                             textStyles="font-intersemibold"
                             isLoading={isSubmitting}
                         />

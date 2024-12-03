@@ -1,17 +1,19 @@
 import home from "@/assets/icons/home.png";
-import skills from "@/assets/icons/skills.png";
+import play from "@/assets/icons/play.png";
 import friends from "@/assets/icons/friends.png";
-import challenges from "@/assets/icons/challenges.png";
+import leaderboard from "@/assets/icons/leaderboard.png";
 import rewards from "@/assets/icons/rewards.png";
 import eye from "@/assets/icons/eye.png";
 import eyehide from "@/assets/icons/eye-hide.png";
+import run from "@/assets/icons/run.png";
 
 export default {
     home,
-    skills,
+    play,
     friends,
-    challenges,
+    leaderboard,
     rewards,
     eye,
     eyehide,
+    run
 };

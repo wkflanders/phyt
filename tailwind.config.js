@@ -13,6 +13,9 @@ module.exports = {
         phyt_form_placeholder: "#58587B",
         phyt_form_border: "#5454BF",
         phyt_form_text: "#ff00f7",
+        phyt_code_box_bg: '#2E2E5D',
+        phyt_code_box_highlight: '#b915c2',
+        phyt_code_box_highlight_border: '#ef48f7'
       },
       fontFamily: {
         incextralight: ["Inconsolata-ExtraLight"],

@@ -1,6 +1,6 @@
 import { Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 
-interface ButtonProps {
+interface FunctionalButtonProps {
     title: string;
     handlePress: () => void;
     containerStyles?: string;
@@ -8,18 +8,18 @@ interface ButtonProps {
     isLoading: boolean;
 }
 
-const Button = ({
+export const FunctionalButton = ({
     title,
     handlePress,
     containerStyles,
     textStyles,
     isLoading,
-}: ButtonProps) => {
+}: FunctionalButtonProps) => {
     return (
         <TouchableOpacity
             onPress={handlePress}
             activeOpacity={0.7}
-            className={`bg-phyt_red min-h-[40px] w-1/2 flex flex-row justify-center items-center rounded-full ${containerStyles} ${isLoading ? "opacity-50" : ""}`}
+            className={`bg-phyt_red min-h-[40px] w-1/2 flex flex-row justify-center items-center ${containerStyles} ${isLoading ? "opacity-50" : ""}`}
             disabled={isLoading}
         >
             <Text className={`text-white font-incsemibold text-xl ${textStyles}`}>
@@ -37,5 +37,3 @@ const Button = ({
         </TouchableOpacity>
     );
 };
-
-export default Button;

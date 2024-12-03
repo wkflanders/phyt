@@ -40,7 +40,7 @@ const TabsLayout = () => {
                     tabBarStyle: {
                         backgroundColor: '#101010',
                         borderTopWidth: 1,
-                        borderTopColor: '#232533',
+                        borderTopColor: '#101010',
                         position: 'absolute',
                         height: 100,
                         bottom: 0,
@@ -66,60 +66,45 @@ const TabsLayout = () => {
                     }}
                 />
                 <Tabs.Screen
-                    name="skills"
+                    name="play"
                     options={{
-                        title: "Skills",
+                        title: "Play",
                         headerShown: false,
                         tabBarIcon: ({ color, focused }) => (
                             <TabIcon
-                                icon={icons.skills}
+                                icon={icons.play}
                                 color={color}
-                                name="Skills"
+                                name="Play"
                                 focused={focused}
                             />
                         )
                     }}
                 />
                 <Tabs.Screen
-                    name="friends"
+                    name="run"
                     options={{
-                        title: "Friends",
+                        title: "Run",
                         headerShown: false,
                         tabBarIcon: ({ color, focused }) => (
                             <TabIcon
-                                icon={icons.friends}
+                                icon={icons.run}
                                 color={color}
-                                name="Friends"
+                                name="Run"
                                 focused={focused}
                             />
                         )
                     }}
                 />
                 <Tabs.Screen
-                    name="challenges"
+                    name="leaderboard"
                     options={{
-                        title: "Challenges",
+                        title: "Leaderboard",
                         headerShown: false,
                         tabBarIcon: ({ color, focused }) => (
                             <TabIcon
-                                icon={icons.challenges}
+                                icon={icons.leaderboard}
                                 color={color}
-                                name="Challenges"
-                                focused={focused}
-                            />
-                        )
-                    }}
-                />
-                <Tabs.Screen
-                    name="rewards"
-                    options={{
-                        title: "Rewards",
-                        headerShown: false,
-                        tabBarIcon: ({ color, focused }) => (
-                            <TabIcon
-                                icon={icons.rewards}
-                                color={color}
-                                name="Rewards"
+                                name="Leaderboard"
                                 focused={focused}
                             />
                         )

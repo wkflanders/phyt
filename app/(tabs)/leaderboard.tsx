@@ -1,12 +1,12 @@
 import { View, Text } from 'react-native';
 import React from 'react';
 
-const Rewards = () => {
+const Leaderboard = () => {
     return (
         <View>
-            <Text>Rewards</Text>
+            <Text>Leaderboard</Text>
         </View>
     );
 };
 
-export default Rewards;
+export default Leaderboard;

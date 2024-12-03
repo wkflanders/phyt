@@ -1,11 +1,15 @@
-import React, { useEffect } from 'react';
+
+import { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { SplashScreen, Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PrivyProvider } from '@privy-io/expo';
 
-import GlobalProvider from "../context/GlobalProvider";
+import { PortalHost } from '@rn-primitives/portal';
 
 import "../global.css";
+
 
 const RootLayout = () => {
     const [fontsLoaded, error] = useFonts({
@@ -44,13 +48,21 @@ const RootLayout = () => {
     }
 
     return (
-        <GlobalProvider>
-            <Stack>
-                <Stack.Screen name="index" options={{ headerShown: false }} />
-                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack>
-        </GlobalProvider>
+        <>
+            <SafeAreaProvider>
+                <PrivyProvider
+                    appId={'cm466mv4o01wfkhkse3g9gyhr'}
+                    clientId={'client-WY5eJqKxgS2bURn6XZU2CTYFMphvJ8X9he8fipPukPvKH'}
+                >
+                    <Stack>
+                        <Stack.Screen name="index" options={{ headerShown: false }} />
+                        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    </Stack>
+                </PrivyProvider>
+            </SafeAreaProvider>
+            <PortalHost />
+        </>
     );
 };
 

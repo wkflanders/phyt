@@ -16,7 +16,7 @@ interface FormFieldProps {
     secureTextEntry?: boolean;
 }
 
-const FormField = ({
+export const FormField = ({
     title,
     value,
     placeholder,
@@ -34,7 +34,7 @@ const FormField = ({
         <View className={`space-y-2 ${otherStyles}`}>
             <View className="w-full h-16 bg-phyt_form px-4 pb-2 items-center border-2 border-phyt_form_border flex-row rounded-2xl">
                 <TextInput
-                    className="flex-1 text-phyt_blue text-xl font-incsemibold h-full"
+                    className="flex-1 text-white text-xl font-incsemibold h-full"
                     value={value}
                     placeholder={placeholder}
                     placeholderTextColor="phyt_form_placeholder"
@@ -55,5 +55,3 @@ const FormField = ({
         </View >
     );
 };
-
-export default FormField;

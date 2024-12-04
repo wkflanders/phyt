@@ -5,11 +5,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FunctionalButton } from '@/components/FunctionalButton';
 
 import { images } from "@/constants";
+import { useSupabaseUser } from '@/hooks/useSupabaseUser';
 
 export default function App() {
     const { user } = usePrivy();
+    const { supabaseUser, isLoading } = useSupabaseUser();
 
-    if (user) return <Redirect href="/home" />;
+    if (isLoading) {
+        <SafeAreaView className="bg-black">
+            <View className="flex-1 justify-center items-center">
+                <Text className="text-white">Loading...</Text>
+            </View>
+        </SafeAreaView>;
+    }
+
+    if (user && supabaseUser) return <Redirect href="/home" />;
     return (
         <SafeAreaView className="bg-black">
             <ScrollView contentContainerStyle={{ height: '100%' }}>

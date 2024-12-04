@@ -5,6 +5,7 @@ import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useLoginWithEmail } from '@privy-io/expo';
+import { useEmbeddedWallet, isNotCreated } from '@privy-io/expo';
 
 import { FormField } from '@/components/FormField';
 import { FunctionalButton } from '@/components/FunctionalButton';
@@ -22,6 +23,8 @@ const SignIn = () => {
 
     const { initSupabaseUser } = useSupabaseUser();
 
+    const wallet = useEmbeddedWallet();
+
     const { state, sendCode, loginWithCode } = useLoginWithEmail({
         onError: (err) => {
             console.log(err);
@@ -30,6 +33,11 @@ const SignIn = () => {
         onLoginSuccess: async (user) => {
             try {
                 await initSupabaseUser(user);
+
+                if (isNotCreated(wallet)) {
+                    wallet.create({ recoveryMethod: 'privy' });
+                }
+
                 router.push('/home');
             } catch (error) {
                 console.error('Error creating supabase user:', error);

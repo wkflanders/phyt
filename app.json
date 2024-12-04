@@ -18,6 +18,7 @@
       "bundleIdentifier": "fun.phyt.app"
     },
     "android": {
+      "minSdkVersion": 26,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -43,6 +44,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "fc6eb67f-ba4f-46eb-9776-cf3a34afb651"
+      }
     }
   }
 }

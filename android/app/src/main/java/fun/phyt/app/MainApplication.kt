@@ -1,4 +1,4 @@
-package com.capella.phyt
+package `fun`.phyt.app
 
 import android.app.Application
 import android.content.res.Configuration

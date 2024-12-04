@@ -1,4 +1,4 @@
-package com.capella.phyt
+package `fun`.phyt.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

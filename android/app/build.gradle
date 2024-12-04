@@ -86,9 +86,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.capella.phyt'
+    namespace 'fun.phyt.app'
     defaultConfig {
-        applicationId 'com.capella.phyt'
+        applicationId 'fun.phyt.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -174,5 +174,3 @@ dependencies {
         implementation jscFlavor
     }
 }
-
-apply plugin: 'com.google.gms.google-services'

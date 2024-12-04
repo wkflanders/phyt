@@ -6,6 +6,10 @@ import rewards from "@/assets/icons/rewards.png";
 import eye from "@/assets/icons/eye.png";
 import eyehide from "@/assets/icons/eye-hide.png";
 import run from "@/assets/icons/run.png";
+import settings from "@/assets/icons/settings.png";
+import wallet from "@/assets/icons/wallet.png";
+import profile from "@/assets/icons/profile.png";
+import message from "@/assets/icons/message.png";
 
 export default {
     home,
@@ -15,5 +19,9 @@ export default {
     rewards,
     eye,
     eyehide,
-    run
+    run,
+    settings,
+    wallet,
+    profile,
+    message
 };

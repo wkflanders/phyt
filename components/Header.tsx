@@ -1,5 +1,6 @@
 import { View, Text, Image } from 'react-native';
 import { Icon } from '@/components/Icon';
+import { Wallet } from '@/components/Wallet';
 
 import icons from "@/constants/icons";
 import images from "@/constants/images";
@@ -35,15 +36,7 @@ const Header = () => {
                     resizeMode="contain"
                 />
             </View>
-            <View className="ml-4">
-                <Icon
-                    icon={icons.wallet}
-                    onPress={() => {
-
-                    }}
-                    label={'wallet'}
-                />
-            </View>
+            <Wallet />
             <View className="ml-4">
                 <Icon
                     icon={icons.settings}

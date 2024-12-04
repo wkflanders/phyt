@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSupabaseUser } from '@/hooks/useSupabaseUser';
 
 import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,14 +20,21 @@ const SignIn = () => {
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const { initSupabaseUser } = useSupabaseUser();
+
     const { state, sendCode, loginWithCode } = useLoginWithEmail({
         onError: (err) => {
             console.log(err);
             setError(JSON.stringify(err.message));
         },
-        onLoginSuccess: (user, isNewUser) => {
-            console.log(user);
-            console.log(isNewUser);
+        onLoginSuccess: async (user) => {
+            try {
+                await initSupabaseUser(user);
+                router.push('/home');
+            } catch (error) {
+                console.error('Error creating supabase user:', error);
+                setError('Failed to create user profile');
+            }
             router.push('/home');
         }
     });

@@ -5,6 +5,9 @@ import { SplashScreen, Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PrivyProvider } from '@privy-io/expo';
+import { ThirdwebProvider } from 'thirdweb/react';
+
+import { base } from 'viem/chains';
 
 import { PortalHost } from '@rn-primitives/portal';
 
@@ -53,12 +56,15 @@ const RootLayout = () => {
                 <PrivyProvider
                     appId={'cm466mv4o01wfkhkse3g9gyhr'}
                     clientId={'client-WY5eJqKxgS2bURn6XZU2CTYFMphvJ8X9he8fipPukPvKH'}
+                    supportedChains={[base]}
                 >
-                    <Stack>
-                        <Stack.Screen name="index" options={{ headerShown: false }} />
-                        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                    </Stack>
+                    <ThirdwebProvider>
+                        <Stack>
+                            <Stack.Screen name="index" options={{ headerShown: false }} />
+                            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                        </Stack>
+                    </ThirdwebProvider>
                 </PrivyProvider>
             </SafeAreaProvider>
             <PortalHost />

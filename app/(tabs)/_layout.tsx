@@ -1,5 +1,7 @@
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Tabs, Redirect } from 'expo-router';
+
+import { RecordScreenModal } from '@/features/record/components/RecordScreenModal';
 
 import { icons } from '../../constants';
 
@@ -12,16 +14,29 @@ type TabIconProps = {
 
 const TabIcon = ({ icon, color, name, focused }: TabIconProps) => {
     return (
-        <View className="items-center justify-center min-w-[60px] flex-1 pt-3">
+        <View style={{
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: 60,
+            paddingTop: 10
+        }}>
             <Image
                 source={icon}
                 resizeMode="contain"
-                tintColor={color}
-                className="h-6 w-6"
+                style={{
+                    tintColor: color,
+                    width: 24,
+                    height: 24,
+                    marginBottom: 5,
+                }}
             />
             <Text
-                className={`${focused ? 'font-incsemibold' : 'font-incregular'} text-xs mt-1`}
-                style={{ color: color }}
+                style={{
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: focused ? '600' : '400',
+                }}
+                className="font-intersemibold"
             >
                 {name}
             </Text>
@@ -31,7 +46,7 @@ const TabIcon = ({ icon, color, name, focused }: TabIconProps) => {
 
 const TabsLayout = () => {
     return (
-        <>
+        <View style={{ flex: 1 }}>
             <Tabs
                 screenOptions={{
                     tabBarShowLabel: false,
@@ -66,6 +81,16 @@ const TabsLayout = () => {
                     }}
                 />
                 <Tabs.Screen
+                    name="record"
+                    options={{
+                        title: "Record",
+                        headerShown: false,
+                        tabBarIcon: () => null,
+                        tabBarButton: () => <RecordScreenModal />,
+                    }}
+                />
+
+                <Tabs.Screen
                     name="play"
                     options={{
                         title: "Play",
@@ -77,41 +102,11 @@ const TabsLayout = () => {
                                 name="Play"
                                 focused={focused}
                             />
-                        )
-                    }}
-                />
-                <Tabs.Screen
-                    name="run"
-                    options={{
-                        title: "Run",
-                        headerShown: false,
-                        tabBarIcon: ({ color, focused }) => (
-                            <TabIcon
-                                icon={icons.run}
-                                color={color}
-                                name="Run"
-                                focused={focused}
-                            />
-                        )
-                    }}
-                />
-                <Tabs.Screen
-                    name="leaderboard"
-                    options={{
-                        title: "Leaderboard",
-                        headerShown: false,
-                        tabBarIcon: ({ color, focused }) => (
-                            <TabIcon
-                                icon={icons.leaderboard}
-                                color={color}
-                                name="Leaderboard"
-                                focused={focused}
-                            />
-                        )
+                        ),
                     }}
                 />
             </Tabs>
-        </>
+        </View>
     );
 };
 

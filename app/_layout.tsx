@@ -6,7 +6,8 @@ import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PrivyProvider } from '@privy-io/expo';
 import { ThirdwebProvider } from 'thirdweb/react';
-
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { base } from 'viem/chains';
 
 import { PortalHost } from '@rn-primitives/portal';
@@ -52,22 +53,26 @@ const RootLayout = () => {
 
     return (
         <>
-            <SafeAreaProvider>
-                <PrivyProvider
-                    appId={'cm466mv4o01wfkhkse3g9gyhr'}
-                    clientId={'client-WY5eJqKxgS2bURn6XZU2CTYFMphvJ8X9he8fipPukPvKH'}
-                    supportedChains={[base]}
-                >
-                    <ThirdwebProvider>
-                        <Stack>
-                            <Stack.Screen name="index" options={{ headerShown: false }} />
-                            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                        </Stack>
-                    </ThirdwebProvider>
-                </PrivyProvider>
-            </SafeAreaProvider>
-            <PortalHost />
+            <GestureHandlerRootView>
+                <BottomSheetModalProvider>
+                    <SafeAreaProvider>
+                        <PrivyProvider
+                            appId={'cm466mv4o01wfkhkse3g9gyhr'}
+                            clientId={'client-WY5eJqKxgS2bURn6XZU2CTYFMphvJ8X9he8fipPukPvKH'}
+                            supportedChains={[base]}
+                        >
+                            <ThirdwebProvider>
+                                <Stack>
+                                    <Stack.Screen name="index" options={{ headerShown: false }} />
+                                    <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                                </Stack>
+                            </ThirdwebProvider>
+                        </PrivyProvider>
+                    </SafeAreaProvider>
+                </BottomSheetModalProvider>
+                <PortalHost />
+            </GestureHandlerRootView>
         </>
     );
 };

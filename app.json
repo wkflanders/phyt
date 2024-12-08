@@ -40,6 +40,12 @@
           }
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Phyt to use your location."
+        }
+      ],
       "expo-secure-store"
     ],
     "experiments": {

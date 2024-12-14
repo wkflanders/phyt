@@ -1,4 +1,4 @@
-import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleProp, ViewStyle, ImageStyle } from 'react-native';
 
 type IconProps = {
     icon: any;
@@ -7,6 +7,8 @@ type IconProps = {
     onPress: () => void;
     label?: string;
     showLabel?: boolean;
+    style?: StyleProp<ViewStyle>;
+    imageStyle?: StyleProp<ImageStyle>;
 };
 
 export const Icon = ({
@@ -15,18 +17,27 @@ export const Icon = ({
     size = 24,
     onPress,
     label,
-    showLabel = false
+    showLabel = false,
+    style,
+    imageStyle
 }: IconProps) => {
     return (
         <TouchableOpacity
             onPress={onPress}
             className="items-center justify-center"
+            style={style}
         >
             <Image
                 source={icon}
                 resizeMode="contain"
                 tintColor={color}
-                className={`h-[${size}px] w-[${size}px]`}
+                style={[
+                    {
+                        height: size,
+                        width: size
+                    },
+                    imageStyle
+                ]}
             />
             {showLabel && label && (
                 <Text

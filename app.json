@@ -15,15 +15,35 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "fun.phyt.app"
+      "bundleIdentifier": "fun.phyt.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyCXQm3sXs5PweAxLnSk8h_MQqtCpgt8rBc"
+      },
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification"
+        ],
+        "NSLocationWhenInUseUsageDescription": "This app requires access to your location when open.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app requires access to your location even when closed.",
+        "NSLocationAlwaysUsageDescription": "This app requires access to your location when open."
+      }
     },
     "android": {
-      "minSdkVersion": 26,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "fun.phyt.app"
+      "config": {
+        "googleMapsApiKey": "AIzaSyCXQm3sXs5PweAxLnSk8h_MQqtCpgt8rBc"
+      },
+      "package": "fun.phyt.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -43,7 +63,11 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Phyt to use your location."
+          "locationAlwaysAndWhenInUsePermission": "Allow Phyt to use your location to track your runs.",
+          "locationAlwaysPermission": "Allow Phyt to use your location to track your runs in the background.",
+          "locationWhenInUsePermission": "Allow Phyt to use your location to track your runs.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       "expo-secure-store"

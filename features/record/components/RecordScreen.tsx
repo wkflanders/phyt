@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform, StatusBar } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform, StatusBar, Animated } from 'react-native';
 import MapView, { Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useRecord } from '../hooks/useRecord';
@@ -9,14 +9,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import icons from '@/constants/icons';
 import darkMapStyle from '@/constants/maps';
 
-interface RunLocation {
-    run_id: string;
-    latitude: number;
-    longitude: number;
-    altitude: number | null;
-    timestamp: number;
-    speed: number | null;
-}
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const MAP_HEIGHT = SCREEN_HEIGHT * (2.8 / 4);
+const PANEL_HEIGHT = MAP_HEIGHT; // The panel height matches the map height.
 
 interface RecordScreenProps {
     closeMenu: () => void;
@@ -24,6 +19,9 @@ interface RecordScreenProps {
 
 export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
     const mapRef = useRef<MapView>(null);
+    const slideAnim = useRef(new Animated.Value(0)).current;
+    const intervalRef = useRef<NodeJS.Timeout>();
+
     const {
         isRecording,
         locations,
@@ -31,16 +29,70 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
         startRecording,
         stopRecording,
         hasFullPermissions,
-    } = useRecord(); // Access hasFullPermissions
+        calculateTotalDistance,
+        formatDuration,
+        calculateAverageSpeed,
+        calculateDuration,
+        currentRun
+    } = useRecord();
 
-    const [initialRegion, setInitialRegion] = React.useState<Region>({
+    const [duration, setDuration] = useState('00:00:00');
+    const [speed, setSpeed] = useState('0.0 km/h');
+    const [distance, setDistance] = useState('0.00 km');
+
+    useEffect(() => {
+        Animated.spring(slideAnim, {
+            toValue: isRecording && currentRun ? 1 : 0,
+            useNativeDriver: false,
+            tension: 20,
+            friction: 7,
+        }).start();
+    }, [isRecording, currentRun]);
+
+    const [initialRegion, setInitialRegion] = useState<Region>({
         latitude: 37.78825,
         longitude: -122.4324,
         latitudeDelta: 0.0922,
         longitudeDelta: 0.0421,
     });
-    const [isLoadingLocation, setIsLoadingLocation] = React.useState(true);
-    const [locationError, setLocationError] = React.useState<string | null>(null);
+    const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+    const [locationError, setLocationError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const updateStats = () => {
+            if (isRecording && currentRun) {
+                const newDuration = formatDuration(currentRun.started_at);
+                const totalDistance = calculateTotalDistance(locations);
+                const currentDistance = (totalDistance / 1000).toFixed(2);
+                const currentSpeed = (calculateAverageSpeed(totalDistance, calculateDuration(currentRun.started_at)) * 3.6).toFixed(1);
+
+                setDuration(newDuration);
+                setDistance(`${currentDistance} km`);
+                setSpeed(`${currentSpeed} km/h`);
+            } else {
+                setDuration('00:00:00');
+                setDistance('0.00 km');
+                setSpeed('0.0 km/h');
+            }
+        };
+
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+        }
+
+        if (isRecording && currentRun) {
+            updateStats();
+            intervalRef.current = setInterval(updateStats, 1000);
+        } else {
+            updateStats();
+        }
+
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, [isRecording, currentRun, locations]);
 
     useEffect(() => {
         const getInitialLocation = async () => {
@@ -122,8 +174,7 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                     </TouchableOpacity>
                 </View>
 
-                {/* Map Container */}
-                <View style={styles.mapContainer}>
+                <View style={styles.mapWrapper}>
                     <MapView
                         ref={mapRef as React.RefObject<MapView>}
                         style={styles.map}
@@ -139,27 +190,24 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                                     latitude: loc.latitude,
                                     longitude: loc.longitude,
                                 }))}
-                                strokeColor="#000"
+                                strokeColor="#fff"
                                 strokeWidth={4}
                             />
                         )}
                     </MapView>
 
-                    {/* Loading Overlay */}
                     {isLoadingLocation && (
                         <View style={styles.loadingOverlay}>
                             <Text>Getting your location...</Text>
                         </View>
                     )}
 
-                    {/* Location Error Overlay */}
                     {locationError && (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>{locationError}</Text>
                         </View>
                     )}
 
-                    {/* Display UI message if background permission not granted */}
                     {!hasFullPermissions && (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>
@@ -168,7 +216,6 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                         </View>
                     )}
 
-                    {/* General Error Overlay */}
                     {error && (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>{error}</Text>
@@ -176,33 +223,57 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                     )}
                 </View>
 
-                {/* Stats Overlay */}
-                {isRecording && (
-                    <View style={styles.statsOverlay}>
-                        <Text style={styles.statsText}>
-                            Distance: {(calculateTotalDistance(locations) / 1000).toFixed(2)} km
-                        </Text>
-                        <Text style={styles.statsText}>
-                            Duration: {formatDuration(locations)}
-                        </Text>
-                    </View>
-                )}
-
-                {/* Record Button */}
-                <TouchableOpacity
-                    onPress={handleRecord}
-                    disabled={!hasFullPermissions}
+                <Animated.View
+                    style={[
+                        styles.statsPanel,
+                        {
+                            transform: [{
+                                translateY: slideAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    // Increase the hidden off-screen position by 50 pixels
+                                    outputRange: [PANEL_HEIGHT + 100, 0]
+                                })
+                            }]
+                        }
+                    ]}
                 >
-                    <Icon
-                        icon={isRecording ? icons.stop : icons.start}
+                    {/* Remove top margin to ensure no content pokes out */}
+                    <View style={styles.statsGrid}>
+                        <View style={styles.statItemTop}>
+                            <Text style={styles.statLabel}>Duration</Text>
+                            <Text style={styles.statValueTop}>{duration}</Text>
+                        </View>
+                        <View style={styles.bottomStatsRow}>
+                            <View style={styles.statItemBottom}>
+                                <Text style={styles.statLabel}>Speed</Text>
+                                <Text style={styles.statValueBottom}>{speed}</Text>
+                            </View>
+                            <View style={styles.statItemBottom}>
+                                <Text style={styles.statLabel}>Distance</Text>
+                                <Text style={styles.statValueBottom}>{distance}</Text>
+                            </View>
+                        </View>
+                    </View>
+                </Animated.View>
+
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity
                         onPress={handleRecord}
-                        label={isRecording ? 'stop' : 'start'}
-                        size={64}
-                        color={!hasFullPermissions
-                            ? '#7D7D7D'
-                            : (isRecording ? '#FE205D' : '#00F6FB')}
-                    />
-                </TouchableOpacity>
+                        disabled={!hasFullPermissions}
+                    >
+                        <Icon
+                            icon={isRecording ? icons.stop : icons.start}
+                            onPress={handleRecord}
+                            label={isRecording ? 'stop' : 'start'}
+                            size={64}
+                            color={
+                                !hasFullPermissions
+                                    ? '#7D7D7D'
+                                    : (isRecording ? '#FE205D' : '#00F6FB')
+                            }
+                        />
+                    </TouchableOpacity>
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -216,9 +287,7 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        paddingHorizontal: 20, // Changed from padding to paddingHorizontal
-        justifyContent: 'flex-start', // Changed from 'center' to 'flex-start'
-        alignItems: 'center',
+        backgroundColor: '#000',
     },
     menuContainer: {
         flexDirection: 'row',
@@ -227,7 +296,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         height: 50,
         width: '100%',
-        marginTop: 10, // Add some space from the top if needed
+        marginTop: 10,
     },
     leftItem: {
         flex: 1,
@@ -247,14 +316,14 @@ const styles = StyleSheet.create({
     rightText: {
         color: '#fff',
     },
-    mapContainer: {
+    mapWrapper: {
         width: Dimensions.get('window').width,
-        height: Dimensions.get('window').height * (2.8 / 4),
-        borderRadius: 15,
+        height: MAP_HEIGHT,
+        backgroundColor: '#000',
         overflow: 'hidden',
-        marginBottom: 20,
     },
     map: {
+        ...StyleSheet.absoluteFillObject,
         flex: 1,
     },
     errorContainer: {
@@ -270,18 +339,6 @@ const styles = StyleSheet.create({
         color: '#fff',
         textAlign: 'center',
     },
-    statsOverlay: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        padding: 15,
-        borderRadius: 10,
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        marginBottom: 20,
-    },
-    statsText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
     loadingOverlay: {
         position: 'absolute',
         top: '50%',
@@ -292,51 +349,52 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         alignItems: 'center',
     },
+    statsPanel: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: PANEL_HEIGHT,
+        backgroundColor: '#000',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        zIndex: 10,
+    },
+    statsGrid: {
+        width: '100%',
+        // Removed marginTop here
+    },
+    statItemTop: {
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    bottomStatsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        width: '100%',
+    },
+    statItemBottom: {
+        alignItems: 'center',
+    },
+    statLabel: {
+        color: '#666',
+        fontSize: 14,
+        marginBottom: 4,
+    },
+    statValueTop: {
+        color: '#fff',
+        fontSize: 48,
+        fontWeight: 'bold',
+    },
+    statValueBottom: {
+        color: '#fff',
+        fontSize: 40,
+        fontWeight: 'bold',
+    },
+    buttonContainer: {
+        position: 'absolute',
+        bottom: 20,
+        alignSelf: 'center',
+        zIndex: 999,
+    },
 });
-
-// Utility Functions
-
-const calculateTotalDistance = (locations: RunLocation[]): number => {
-    let distance = 0;
-    for (let i = 1; i < locations.length; i++) {
-        const prevLoc = locations[i - 1];
-        const currLoc = locations[i];
-        distance += haversineDistance(
-            prevLoc.latitude,
-            prevLoc.longitude,
-            currLoc.latitude,
-            currLoc.longitude
-        );
-    }
-    return distance;
-};
-
-const haversineDistance = (
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number
-): number => {
-    const R = 6371e3;
-    const φ1 = lat1 * Math.PI / 180;
-    const φ2 = lat2 * Math.PI / 180;
-    const Δφ = (lat2 - lat1) * Math.PI / 180;
-    const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-        Math.cos(φ1) * Math.cos(φ2) *
-        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c;
-};
-
-const formatDuration = (locations: RunLocation[]): string => {
-    if (locations.length < 1) return '0:00';
-    const startTime = locations[0].timestamp;
-    const endTime = locations[locations.length - 1].timestamp;
-    const seconds = Math.floor((endTime - startTime) / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};

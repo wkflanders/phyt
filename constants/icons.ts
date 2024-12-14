@@ -10,6 +10,8 @@ import settings from "@/assets/icons/settings.png";
 import wallet from "@/assets/icons/wallet.png";
 import profile from "@/assets/icons/profile.png";
 import message from "@/assets/icons/message.png";
+import start from "@/assets/icons/start.png";
+import stop from "@/assets/icons/stop.png";
 
 export default {
     home,
@@ -23,5 +25,7 @@ export default {
     settings,
     wallet,
     profile,
-    message
+    message,
+    start,
+    stop,
 };

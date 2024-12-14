@@ -1,6 +1,6 @@
 import { useRef, useMemo, useCallback } from 'react';
 
-import { View, Image, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
 import icons from '@/constants/icons';
 import { BottomSheetView, BottomSheetModalProvider, BottomSheetModal, useBottomSheetModal } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -13,21 +13,21 @@ export const RecordScreenModal = () => {
 
     const handleRecordPress = useCallback(() => {
         bottomSheetModalRef.current?.present();
-    }, [])
+    }, []);
 
     const handleDismiss = useCallback(() => {
         dismiss();
     }, [dismiss]);
 
-    const snapPoints = useMemo(() => ['100%'], []);
+    const snapPoints = useMemo(() => ['100'], []);
 
     return (
         <>
             <View style={{
                 flex: 1,
                 alignItems: 'center',
-                height: '100%',
-                paddingBottom: 50
+                height: Dimensions.get('window').height,
+                paddingBottom: 50,
             }}
             >
                 <TouchableOpacity
@@ -64,6 +64,9 @@ export const RecordScreenModal = () => {
             </View>
             <BottomSheetModal
                 ref={bottomSheetModalRef}
+                backgroundStyle={{
+                    backgroundColor: 'black'
+                }}
                 snapPoints={snapPoints}
                 index={0}
                 enablePanDownToClose={false}
@@ -71,31 +74,44 @@ export const RecordScreenModal = () => {
                 enableOverDrag={false}
                 enableDynamicSizing={false}
                 onDismiss={handleDismiss}
+                handleStyle={{
+                    display: 'none',
+                }}
+                style={{
+                    padding: 0,
+                    margin: 0,
+                }}
             >
                 <BottomSheetView style={styles.contentContainer}>
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                         onPress={handleDismiss}
                         style={styles.closeButton}
                     >
-                        <RecordScreen />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
+                    <RecordScreen
+                        closeMenu={handleDismiss}
+                    />
+
                 </BottomSheetView>
             </BottomSheetModal>
         </>
-    )
-}
+    );
+};
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'grey',
+        backgroundColor: '#000',
     },
     contentContainer: {
         flex: 1,
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'flex-start',
+        backgroundColor: '#000',
+        padding: 0,
+        margin: 0
     },
     closeButton: {
         backgroundColor: '#7D7D7D'

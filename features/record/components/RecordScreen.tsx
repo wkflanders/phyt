@@ -1,8 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform, StatusBar } from 'react-native';
+import MapView, { Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useRecord } from '../hooks/useRecord';
+import { Icon } from '@/components/Icon';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import icons from '@/constants/icons';
+import darkMapStyle from '@/constants/maps';
 
 interface RunLocation {
     run_id: string;
@@ -13,34 +18,59 @@ interface RunLocation {
     speed: number | null;
 }
 
-export const RecordScreen: React.FC = () => {
-    const mapRef = useRef<MapView | null>(null);
+interface RecordScreenProps {
+    closeMenu: () => void;
+}
+
+export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
+    const mapRef = useRef<MapView>(null);
     const {
         isRecording,
         locations,
         error,
         startRecording,
-        stopRecording
-    } = useRecord();
+        stopRecording,
+        hasFullPermissions,
+    } = useRecord(); // Access hasFullPermissions
 
-    const [initialRegion, setInitialRegion] = React.useState<Region | null>(null);
+    const [initialRegion, setInitialRegion] = React.useState<Region>({
+        latitude: 37.78825,
+        longitude: -122.4324,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+    });
+    const [isLoadingLocation, setIsLoadingLocation] = React.useState(true);
+    const [locationError, setLocationError] = React.useState<string | null>(null);
 
     useEffect(() => {
         const getInitialLocation = async () => {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                return;
+            try {
+                setIsLoadingLocation(true);
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                    setLocationError('Permission to access location was denied');
+                    return;
+                }
+
+                const location = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Balanced,
+                });
+
+                const region: Region = {
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                    latitudeDelta: 0.005,
+                    longitudeDelta: 0.005,
+                };
+
+                setInitialRegion(region);
+                mapRef.current?.animateToRegion(region, 1000);
+            } catch (err) {
+                setLocationError('Failed to get location');
+                console.error(err);
+            } finally {
+                setIsLoadingLocation(false);
             }
-
-            const location = await Location.getCurrentPositionAsync({});
-            const region: Region = {
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-            };
-
-            setInitialRegion(region);
         };
 
         getInitialLocation();
@@ -66,107 +96,172 @@ export const RecordScreen: React.FC = () => {
         }
     };
 
-    if (!initialRegion) {
-        return (
-            <View style={styles.container}>
-                <Text>Loading map...</Text>
-            </View>
-        );
-    }
-
     return (
-        <View style={styles.container}>
-            <MapView
-                ref={mapRef}
-                style={styles.map}
-                provider={PROVIDER_GOOGLE}
-                initialRegion={initialRegion}
-                showsUserLocation
-                showsMyLocationButton
-                followsUserLocation
-            >
-                {locations.length > 0 && (
-                    <Polyline
-                        coordinates={locations.map(loc => ({
-                            latitude: loc.latitude,
-                            longitude: loc.longitude,
-                        }))}
-                        strokeColor="#000"
-                        strokeWidth={4}
-                    />
+        <SafeAreaView style={styles.safeArea}>
+            <View style={styles.container}>
+                <View style={styles.menuContainer}>
+                    <TouchableOpacity
+                        style={styles.leftItem}
+                        onPress={() => {
+                            closeMenu();
+                        }}
+                    >
+                        <Text style={styles.rightText}>Close</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.centerItem}>
+                        <Text className="font-interbold text-xl" style={styles.centerText}>Run</Text>
+                    </View>
+
+                    <TouchableOpacity style={styles.rightItem}>
+                        <Icon
+                            icon={icons.settings}
+                            onPress={() => { }}
+                            label={'settings'}
+                        />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Map Container */}
+                <View style={styles.mapContainer}>
+                    <MapView
+                        ref={mapRef as React.RefObject<MapView>}
+                        style={styles.map}
+                        provider={PROVIDER_GOOGLE}
+                        initialRegion={initialRegion}
+                        showsUserLocation
+                        showsMyLocationButton
+                        customMapStyle={darkMapStyle}
+                    >
+                        {locations.length > 0 && (
+                            <Polyline
+                                coordinates={locations.map(loc => ({
+                                    latitude: loc.latitude,
+                                    longitude: loc.longitude,
+                                }))}
+                                strokeColor="#000"
+                                strokeWidth={4}
+                            />
+                        )}
+                    </MapView>
+
+                    {/* Loading Overlay */}
+                    {isLoadingLocation && (
+                        <View style={styles.loadingOverlay}>
+                            <Text>Getting your location...</Text>
+                        </View>
+                    )}
+
+                    {/* Location Error Overlay */}
+                    {locationError && (
+                        <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>{locationError}</Text>
+                        </View>
+                    )}
+
+                    {/* Display UI message if background permission not granted */}
+                    {!hasFullPermissions && (
+                        <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>
+                                Background location is required to track your run.
+                            </Text>
+                        </View>
+                    )}
+
+                    {/* General Error Overlay */}
+                    {error && (
+                        <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                    )}
+                </View>
+
+                {/* Stats Overlay */}
+                {isRecording && (
+                    <View style={styles.statsOverlay}>
+                        <Text style={styles.statsText}>
+                            Distance: {(calculateTotalDistance(locations) / 1000).toFixed(2)} km
+                        </Text>
+                        <Text style={styles.statsText}>
+                            Duration: {formatDuration(locations)}
+                        </Text>
+                    </View>
                 )}
-            </MapView>
 
-            {error && (
-                <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>{error}</Text>
-                </View>
-            )}
-
-            {isRecording && (
-                <View style={styles.statsOverlay}>
-                    <Text style={styles.statsText}>
-                        Distance: {(calculateTotalDistance(locations) / 1000).toFixed(2)} km
-                    </Text>
-                    <Text style={styles.statsText}>
-                        Duration: {formatDuration(locations)}
-                    </Text>
-                </View>
-            )}
-
-            <TouchableOpacity
-                style={[
-                    styles.recordButton,
-                    isRecording ? styles.recordingButton : styles.notRecordingButton
-                ]}
-                onPress={handleRecord}
-            >
-                <Text style={styles.buttonText}>
-                    {isRecording ? 'Stop Recording' : 'Start Recording'}
-                </Text>
-            </TouchableOpacity>
-        </View>
+                {/* Record Button */}
+                <TouchableOpacity
+                    onPress={handleRecord}
+                    disabled={!hasFullPermissions}
+                >
+                    <Icon
+                        icon={isRecording ? icons.stop : icons.start}
+                        onPress={handleRecord}
+                        label={isRecording ? 'stop' : 'start'}
+                        size={64}
+                        color={!hasFullPermissions
+                            ? '#7D7D7D'
+                            : (isRecording ? '#FE205D' : '#00F6FB')}
+                    />
+                </TouchableOpacity>
+            </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#000',
+        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    },
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        paddingHorizontal: 20, // Changed from padding to paddingHorizontal
+        justifyContent: 'flex-start', // Changed from 'center' to 'flex-start'
+        alignItems: 'center',
+    },
+    menuContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        height: 50,
+        width: '100%',
+        marginTop: 10, // Add some space from the top if needed
+    },
+    leftItem: {
+        flex: 1,
+        alignItems: 'flex-start',
+    },
+    centerItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    centerText: {
+        color: '#fff'
+    },
+    rightItem: {
+        flex: 1,
+        alignItems: 'flex-end',
+    },
+    rightText: {
+        color: '#fff',
+    },
+    mapContainer: {
+        width: Dimensions.get('window').width,
+        height: Dimensions.get('window').height * (2.8 / 4),
+        borderRadius: 15,
+        overflow: 'hidden',
+        marginBottom: 20,
     },
     map: {
-        width: Dimensions.get('window').width,
-        height: Dimensions.get('window').height,
-    },
-    recordButton: {
-        position: 'absolute',
-        bottom: 40,
-        alignSelf: 'center',
-        paddingHorizontal: 30,
-        paddingVertical: 15,
-        borderRadius: 25,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-    },
-    notRecordingButton: {
-        backgroundColor: '#4CAF50',
-    },
-    recordingButton: {
-        backgroundColor: '#f44336',
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
+        flex: 1,
     },
     errorContainer: {
         position: 'absolute',
-        top: 50,
-        left: 20,
-        right: 20,
+        top: 10,
+        left: 10,
+        right: 10,
         backgroundColor: 'rgba(255, 0, 0, 0.8)',
         padding: 10,
         borderRadius: 5,
@@ -176,23 +271,31 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     statsOverlay: {
-        position: 'absolute',
-        top: 50,
-        left: 20,
-        right: 20,
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
         padding: 15,
         borderRadius: 10,
         flexDirection: 'row',
         justifyContent: 'space-around',
+        marginBottom: 20,
     },
     statsText: {
         fontSize: 16,
         fontWeight: 'bold',
     },
+    loadingOverlay: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: [{ translateX: -50 }, { translateY: -10 }],
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        padding: 15,
+        borderRadius: 10,
+        alignItems: 'center',
+    },
 });
 
-// Helper functions
+// Utility Functions
+
 const calculateTotalDistance = (locations: RunLocation[]): number => {
     let distance = 0;
     for (let i = 1; i < locations.length; i++) {
@@ -214,7 +317,7 @@ const haversineDistance = (
     lat2: number,
     lon2: number
 ): number => {
-    const R = 6371e3; // Earth's radius in meters
+    const R = 6371e3;
     const φ1 = lat1 * Math.PI / 180;
     const φ2 = lat2 * Math.PI / 180;
     const Δφ = (lat2 - lat1) * Math.PI / 180;

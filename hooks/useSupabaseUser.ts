@@ -24,7 +24,7 @@ export const useSupabaseUser = () => {
                 .from('users')
                 .select()
                 .eq('privy_id', privyUser.id)
-                .single();
+                .maybeSingle();
 
             if (fetchError && fetchError.code !== 'PGRST116') {
                 console.error('Error fetching user:', fetchError);
@@ -37,14 +37,29 @@ export const useSupabaseUser = () => {
                     .insert({
                         privy_id: privyUser.id,
                         email: userEmail,
-                        created_at: new Date().toISOString()
                     })
                     .select()
                     .single();
 
                 if (createError) {
-                    console.error('Error creating user:', createError);
-                    return null;
+                    if (createError.code === '23505') { // Duplicate key error code
+                        // Fetch the existing user
+                        const { data: existingUser, error: fetchError } = await supabase
+                            .from('users')
+                            .select()
+                            .eq('privy_id', privyUser.id)
+                            .single();
+
+                        if (fetchError) {
+                            console.error('Error fetching existing user after duplicate key:', fetchError);
+                            return null;
+                        }
+
+                        return existingUser;
+                    } else {
+                        console.error('Error creating user:', createError);
+                        return null;
+                    }
                 }
                 return newUser;
             }

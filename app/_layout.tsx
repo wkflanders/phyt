@@ -54,23 +54,24 @@ const RootLayout = () => {
     return (
         <>
             <GestureHandlerRootView>
-                <BottomSheetModalProvider>
-                    <SafeAreaProvider>
-                        <PrivyProvider
-                            appId={'cm466mv4o01wfkhkse3g9gyhr'}
-                            clientId={'client-WY5eJqKxgS2bURn6XZU2CTYFMphvJ8X9he8fipPukPvKH'}
-                            supportedChains={[base]}
-                        >
-                            <ThirdwebProvider>
+                <SafeAreaProvider>
+                    <PrivyProvider
+                        appId={'cm466mv4o01wfkhkse3g9gyhr'}
+                        clientId={'client-WY5eJqKxgS2bURn6XZU2CTYFMphvJ8X9he8fipPukPvKH'}
+                        supportedChains={[base]}
+                    >
+                        <ThirdwebProvider>
+                            <BottomSheetModalProvider>
+
                                 <Stack>
                                     <Stack.Screen name="index" options={{ headerShown: false }} />
                                     <Stack.Screen name="(auth)" options={{ headerShown: false }} />
                                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                                 </Stack>
-                            </ThirdwebProvider>
-                        </PrivyProvider>
-                    </SafeAreaProvider>
-                </BottomSheetModalProvider>
+                            </BottomSheetModalProvider>
+                        </ThirdwebProvider>
+                    </PrivyProvider>
+                </SafeAreaProvider>
                 <PortalHost />
             </GestureHandlerRootView>
         </>

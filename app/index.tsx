@@ -12,11 +12,13 @@ export default function App() {
     const { supabaseUser, isLoading } = useSupabaseUser();
 
     if (isLoading || !isReady) {
-        <SafeAreaView className="bg-black">
-            <View className="flex-1 justify-center items-center">
-                <Text className="text-white">Loading...</Text>
-            </View>
-        </SafeAreaView>;
+        return (
+            <SafeAreaView className="bg-black">
+                <View className="flex-1 justify-center items-center">
+                    <Text className="text-white">Loading...</Text>
+                </View>
+            </SafeAreaView>
+        );
     }
 
     if (user && supabaseUser) return <Redirect href="/home" />;

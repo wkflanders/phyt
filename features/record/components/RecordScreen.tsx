@@ -11,7 +11,7 @@ import darkMapStyle from '@/constants/maps';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const MAP_HEIGHT = SCREEN_HEIGHT * (2.8 / 4);
-const PANEL_HEIGHT = MAP_HEIGHT; // The panel height matches the map height.
+const PANEL_HEIGHT = 0.5 * MAP_HEIGHT;
 
 interface RecordScreenProps {
     closeMenu: () => void;
@@ -24,10 +24,13 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
 
     const {
         isRecording,
-        locations,
+        isPaused,
+        segments,
         error,
         startRecording,
-        stopRecording,
+        pauseRecording,
+        resumeRecording,
+        finishRecording,
         hasFullPermissions,
         calculateTotalDistance,
         formatDuration,
@@ -39,6 +42,8 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
     const [duration, setDuration] = useState('00:00:00');
     const [speed, setSpeed] = useState('0.0 km/h');
     const [distance, setDistance] = useState('0.00 km');
+
+    const flatLocations = segments.flat();
 
     useEffect(() => {
         Animated.spring(slideAnim, {
@@ -57,42 +62,6 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
     });
     const [isLoadingLocation, setIsLoadingLocation] = useState(true);
     const [locationError, setLocationError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const updateStats = () => {
-            if (isRecording && currentRun) {
-                const newDuration = formatDuration(currentRun.started_at);
-                const totalDistance = calculateTotalDistance(locations);
-                const currentDistance = (totalDistance / 1000).toFixed(2);
-                const currentSpeed = (calculateAverageSpeed(totalDistance, calculateDuration(currentRun.started_at)) * 3.6).toFixed(1);
-
-                setDuration(newDuration);
-                setDistance(`${currentDistance} km`);
-                setSpeed(`${currentSpeed} km/h`);
-            } else {
-                setDuration('00:00:00');
-                setDistance('0.00 km');
-                setSpeed('0.0 km/h');
-            }
-        };
-
-        if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-        }
-
-        if (isRecording && currentRun) {
-            updateStats();
-            intervalRef.current = setInterval(updateStats, 1000);
-        } else {
-            updateStats();
-        }
-
-        return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-            }
-        };
-    }, [isRecording, currentRun, locations]);
 
     useEffect(() => {
         const getInitialLocation = async () => {
@@ -129,8 +98,8 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
     }, []);
 
     useEffect(() => {
-        if (locations.length > 0 && mapRef.current) {
-            const lastLocation = locations[locations.length - 1];
+        if (flatLocations.length > 0 && mapRef.current) {
+            const lastLocation = flatLocations[flatLocations.length - 1];
             mapRef.current.animateToRegion({
                 latitude: lastLocation.latitude,
                 longitude: lastLocation.longitude,
@@ -138,14 +107,79 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                 longitudeDelta: 0.005,
             }, 1000);
         }
-    }, [locations]);
+    }, [flatLocations]);
 
-    const handleRecord = (): void => {
-        if (isRecording) {
-            stopRecording();
-        } else {
-            startRecording();
+    useEffect(() => {
+        const updateStats = () => {
+            if (isRecording && currentRun && !isPaused) {
+                // Normal running state: update stats every second
+                const totalDistance = calculateTotalDistance(flatLocations);
+                // Convert kilometers to miles (1 km = 0.621371 miles)
+                const milesDistance = (totalDistance / 1000 * 0.621371).toFixed(2);
+                const currentDuration = formatDuration(currentRun.started_at);
+                // Convert km/h to mph (1 km/h = 0.621371 mph)
+                const currentSpeedVal = (calculateAverageSpeed(totalDistance, calculateDuration(currentRun.started_at)) * 3.6 * 0.621371).toFixed(1);
+
+                setDuration(currentDuration);
+                setDistance(`${milesDistance} mi`);
+                setSpeed(`${currentSpeedVal} mph`);
+
+            } else if (isRecording && isPaused && currentRun) {
+                // Paused state: Only set once and do not update afterwards
+                const totalDistance = calculateTotalDistance(flatLocations);
+                const milesDistance = (totalDistance / 1000 * 0.621371).toFixed(2);
+                const currentDuration = formatDuration(currentRun.started_at);
+
+                setDuration(currentDuration);
+                setDistance(`${milesDistance} mi`);
+                // Speed remains whatever it was last set to before pausing
+            } else {
+                // Not recording or no run: reset to defaults
+                setDuration('00:00:00');
+                setDistance('0.00 mi');
+                setSpeed('0.0 mph');
+            }
+        };
+
+        // Clear any previous intervals
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
         }
+
+        if (isRecording && currentRun && !isPaused) {
+            // If running and not paused, update stats every second
+            updateStats();
+            intervalRef.current = setInterval(updateStats, 1000);
+        } else {
+            // If paused or not running, just do a single update and no interval
+            updateStats();
+        }
+
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, [isRecording, isPaused, currentRun, flatLocations, formatDuration, calculateTotalDistance, calculateAverageSpeed, calculateDuration]);
+
+    const handleMainButton = (): void => {
+        if (!hasFullPermissions) return;
+
+        if (!isRecording) {
+            // Start the run
+            startRecording();
+        } else if (isRecording && !isPaused) {
+            // Pause the run
+            pauseRecording();
+        }
+    };
+
+    const handleResume = () => {
+        resumeRecording();
+    };
+
+    const handleFinish = () => {
+        finishRecording();
     };
 
     return (
@@ -154,9 +188,7 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                 <View style={styles.menuContainer}>
                     <TouchableOpacity
                         style={styles.leftItem}
-                        onPress={() => {
-                            closeMenu();
-                        }}
+                        onPress={closeMenu}
                     >
                         <Text style={styles.rightText}>Close</Text>
                     </TouchableOpacity>
@@ -183,17 +215,22 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                         showsUserLocation
                         showsMyLocationButton
                         customMapStyle={darkMapStyle}
+                        // Add padding so that the location button isn't covered
+                        mapPadding={{ top: 0, right: 0, bottom: 200, left: 0 }}
                     >
-                        {locations.length > 0 && (
-                            <Polyline
-                                coordinates={locations.map(loc => ({
-                                    latitude: loc.latitude,
-                                    longitude: loc.longitude,
-                                }))}
-                                strokeColor="#fff"
-                                strokeWidth={4}
-                            />
-                        )}
+                        {segments.map((segment, index) => (
+                            segment.length > 1 && (
+                                <Polyline
+                                    key={index}
+                                    coordinates={segment.map(loc => ({
+                                        latitude: loc.latitude,
+                                        longitude: loc.longitude,
+                                    }))}
+                                    strokeColor="#fff"
+                                    strokeWidth={4}
+                                />
+                            )
+                        ))}
                     </MapView>
 
                     {isLoadingLocation && (
@@ -230,14 +267,12 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                             transform: [{
                                 translateY: slideAnim.interpolate({
                                     inputRange: [0, 1],
-                                    // Increase the hidden off-screen position by 50 pixels
                                     outputRange: [PANEL_HEIGHT + 100, 0]
                                 })
                             }]
                         }
                     ]}
                 >
-                    {/* Remove top margin to ensure no content pokes out */}
                     <View style={styles.statsGrid}>
                         <View style={styles.statItemTop}>
                             <Text style={styles.statLabel}>Duration</Text>
@@ -257,22 +292,33 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                 </Animated.View>
 
                 <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                        onPress={handleRecord}
-                        disabled={!hasFullPermissions}
-                    >
-                        <Icon
-                            icon={isRecording ? icons.stop : icons.start}
-                            onPress={handleRecord}
-                            label={isRecording ? 'stop' : 'start'}
-                            size={64}
-                            color={
-                                !hasFullPermissions
-                                    ? '#7D7D7D'
-                                    : (isRecording ? '#FE205D' : '#00F6FB')
-                            }
-                        />
-                    </TouchableOpacity>
+                    {isRecording && isPaused ? (
+                        <View style={styles.pauseButtonsRow}>
+                            <TouchableOpacity style={styles.pauseButton} onPress={handleResume}>
+                                <Text style={styles.pauseButtonText}>Continue</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.pauseButton} onPress={handleFinish}>
+                                <Text style={styles.pauseButtonText}>Finish</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <TouchableOpacity
+                            onPress={handleMainButton}
+                            disabled={!hasFullPermissions}
+                        >
+                            <Icon
+                                icon={!isRecording ? icons.start : icons.stop}
+                                onPress={handleMainButton}
+                                label={!isRecording ? 'start' : 'pause'}
+                                size={64}
+                                color={
+                                    !hasFullPermissions
+                                        ? '#7D7D7D'
+                                        : (!isRecording ? '#00F6FB' : '#FE205D')
+                                }
+                            />
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
         </SafeAreaView>
@@ -321,6 +367,7 @@ const styles = StyleSheet.create({
         height: MAP_HEIGHT,
         backgroundColor: '#000',
         overflow: 'hidden',
+        zIndex: 0,
     },
     map: {
         ...StyleSheet.absoluteFillObject,
@@ -362,16 +409,17 @@ const styles = StyleSheet.create({
     },
     statsGrid: {
         width: '100%',
-        // Removed marginTop here
     },
     statItemTop: {
         alignItems: 'center',
         marginBottom: 12,
+        marginTop: 20,
     },
     bottomStatsRow: {
         flexDirection: 'row',
         justifyContent: 'space-around',
         width: '100%',
+        marginTop: 20,
     },
     statItemBottom: {
         alignItems: 'center',
@@ -396,5 +444,21 @@ const styles = StyleSheet.create({
         bottom: 20,
         alignSelf: 'center',
         zIndex: 999,
+    },
+    pauseButtonsRow: {
+        flexDirection: 'row',
+    },
+    pauseButton: {
+        backgroundColor: '#00F6FB',
+        paddingVertical: 15,
+        paddingHorizontal: 30,
+        borderRadius: 10,
+        marginHorizontal: 10,
+    },
+    pauseButtonText: {
+        color: '#000',
+        fontSize: 20,
+        fontWeight: 'bold',
+        textAlign: 'center',
     },
 });

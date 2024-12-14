@@ -335,6 +335,15 @@ export const useRecord = () => {
     return distance / duration;
   };
 
+  const formatDuration = (startTime: string): string => {
+    const seconds = calculateDuration(startTime);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   return {
     isRecording,
     locations,
@@ -343,5 +352,9 @@ export const useRecord = () => {
     startRecording,
     stopRecording,
     hasFullPermissions,
+    calculateTotalDistance,
+    calculateDuration,
+    formatDuration,
+    calculateAverageSpeed
   };
 };

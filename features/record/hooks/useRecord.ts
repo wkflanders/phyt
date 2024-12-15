@@ -74,7 +74,6 @@ export const useRecord = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Instead of a single locations array, we have segments of locations
   const [segments, setSegments] = useState<RunLocation[][]>([]);
 
   const [currentRun, setCurrentRun] = useState<Run | null>(null);
@@ -83,14 +82,12 @@ export const useRecord = () => {
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const [hasFullPermissions, setHasFullPermissions] = useState(false);
 
-  // Track paused time to adjust duration
   const [pauseStart, setPauseStart] = useState<number | null>(null);
   const [totalPausedTime, setTotalPausedTime] = useState(0);
 
   const hasAttemptedPermissions = useRef(false);
   const justResumedRef = useRef(false);
 
-  // Store last known stats at pause so they don't change during pause
   const lastKnownStatsRef = useRef<{ duration: string; speed: string; distance: string; }>({
     duration: '00:00:00',
     speed: '0.0 km/h',
@@ -175,7 +172,6 @@ export const useRecord = () => {
     if (!isReady) {
       setError('Privy auth failed');
     } else {
-      // On initial load, check current permissions
       checkCurrentPermissions();
     }
 
@@ -220,7 +216,7 @@ export const useRecord = () => {
       if (runError) throw runError;
 
       setCurrentRun(run);
-      setSegments([[]]); // start with a single empty segment
+      setSegments([[]]);
       setIsRecording(true);
       setIsPaused(false);
       setPauseStart(null);
@@ -260,7 +256,6 @@ export const useRecord = () => {
 
   const pauseRecording = async () => {
     if (!isRecording || isPaused || !currentRun) return;
-    // Stop location updates
     if (locationSubscription.current) {
       await locationSubscription.current.remove();
       locationSubscription.current = null;
@@ -271,29 +266,20 @@ export const useRecord = () => {
       await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME).catch(console.error);
     }
 
-    // Mark the time we paused
     setPauseStart(Date.now());
     setIsPaused(true);
-
-    // Store the current stats so they don't change during pause
-    // We'll rely on the last known stats from the UI (they are updated just before pause in the UI)
-    // So no calculation here needed. Just keep them as they are at the moment.
-    // The UI effect runs before this, so just trust that the stats are correct at this moment.
-    // If needed, we could recalculate them here once and store:
-    // lastKnownStatsRef.current = { duration, speed, distance };
   };
 
   const resumeRecording = async () => {
     if (!isRecording || !isPaused || !currentRun) return;
 
-    // Calculate how long paused
     if (pauseStart !== null) {
       const pausedDuration = Date.now() - pauseStart;
       setTotalPausedTime(prev => prev + pausedDuration);
       setPauseStart(null);
     }
 
-    justResumedRef.current = true; // Indicate that the next location update should reset the baseline.
+    justResumedRef.current = true;
 
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
       ...LOCATION_SETTINGS,
@@ -318,11 +304,7 @@ export const useRecord = () => {
 
         if (justResumedRef.current) {
           justResumedRef.current = false;
-          // Start a new segment to create discontinuity
-          setSegments(prev => {
-            // Add a new segment starting with this location
-            return [...prev, [newLocation]];
-          });
+          setSegments(prev => [...prev, [newLocation]]);
         } else {
           setSegments(prev => {
             const updated = [...prev];
@@ -340,7 +322,6 @@ export const useRecord = () => {
     try {
       if (!currentRun) return;
 
-      // Stop location collection entirely
       if (locationSubscription.current) {
         await locationSubscription.current.remove();
         locationSubscription.current = null;
@@ -352,7 +333,6 @@ export const useRecord = () => {
           await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
         }
       } catch (err) {
-        // Ignore E_TASK_NOT_FOUND errors
         if (!(err instanceof Error) || !err.message?.includes('E_TASK_NOT_FOUND')) {
           console.error('Error stopping location updates:', err);
         }
@@ -439,14 +419,13 @@ export const useRecord = () => {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  // Flattened locations for UI calculations
   const flatLocations = segments.flat();
 
   return {
     isRecording,
     isPaused,
     locations: flatLocations,
-    segments, // Expose segments for polyline rendering
+    segments,
     currentRun,
     error,
     startRecording,

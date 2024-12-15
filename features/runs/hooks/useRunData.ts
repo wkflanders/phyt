@@ -1,8 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, format, parseISO, differenceInMinutes } from 'date-fns';
+import {
+    startOfWeek,
+    endOfWeek,
+    startOfMonth,
+    endOfMonth,
+    eachDayOfInterval,
+    format,
+    parseISO,
+    differenceInMinutes,
+} from 'date-fns';
 import { Region } from 'react-native-maps';
+import debounce from 'lodash/debounce';
 
 // Types
 interface RunLocation {
@@ -254,11 +264,47 @@ export function useRunData(userId: string) {
                 averagePace: totalDuration / (totalDistance / 1609.34) / 60, // minutes per mile
                 longestRun: toMiles(Math.max(...runs.map(run => run.distance_meters))),
                 fastestPace: Math.min(...paces),
+                totalElevationGain: 0, // Assuming elevation data is handled elsewhere
             };
         } catch (err) {
             throw new Error('Failed to calculate stats');
         }
     };
+
+    const getLastThreeMonthsData = (): { month: string; distance: number[]; }[] => {
+        const currentDate = new Date();
+
+        const lastThreeMonths = Array.from({ length: 3 }).map((_, i) => {
+            const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - (2 - i));
+            const month = format(date, 'MMM'); // e.g., "Oct"
+
+            const startOfMonthDate = startOfMonth(date);
+            const endOfMonthDate = endOfMonth(date);
+            const days = eachDayOfInterval({ start: startOfMonthDate, end: endOfMonthDate });
+            const numIntervals = 3; // 2-3 data points per month
+            const intervalSize = Math.ceil(days.length / numIntervals);
+
+            const distances = Array.from({ length: numIntervals }).map((_, j) => {
+                const start = j * intervalSize;
+                const end = start + intervalSize;
+
+                const daysInInterval = days.slice(start, end);
+                const totalDistance = daysInInterval.reduce((sum, day) => {
+                    const activity = (monthlyActivity || []).find(
+                        (act) => format(parseISO(act.date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
+                    );
+                    return sum + (activity ? activity.distance : 0);
+                }, 0);
+
+                return totalDistance;
+            });
+
+            return { month, distance: distances };
+        });
+
+        return lastThreeMonths;
+    };
+
     // Load all data
     const loadData = useCallback(async (forceRefresh = false) => {
         try {
@@ -271,28 +317,34 @@ export function useRunData(userId: string) {
                 monthlyData,
                 statsData
             ] = await Promise.all([
-                forceRefresh ? fetchRecentRuns() : getFromCache(CACHE_KEYS.RECENT_RUNS(userId)) || fetchRecentRuns(),
+                forceRefresh ? fetchRecentRuns() : (await getFromCache(CACHE_KEYS.RECENT_RUNS(userId))) || fetchRecentRuns(),
                 forceRefresh ? calculateActivity(
                     startOfWeek(new Date(), { weekStartsOn: 1 }),
                     endOfWeek(new Date(), { weekStartsOn: 1 })
-                ) : getFromCache(CACHE_KEYS.WEEKLY(userId)) || calculateActivity(
+                ) : (await getFromCache(CACHE_KEYS.WEEKLY(userId))) || calculateActivity(
                     startOfWeek(new Date(), { weekStartsOn: 1 }),
                     endOfWeek(new Date(), { weekStartsOn: 1 })
                 ),
                 forceRefresh ? calculateActivity(
                     startOfMonth(new Date()),
                     endOfMonth(new Date())
-                ) : getFromCache(CACHE_KEYS.MONTHLY(userId)) || calculateActivity(
+                ) : (await getFromCache(CACHE_KEYS.MONTHLY(userId))) || calculateActivity(
                     startOfMonth(new Date()),
                     endOfMonth(new Date())
                 ),
-                forceRefresh ? calculateStats() : getFromCache(CACHE_KEYS.STATS(userId)) || calculateStats(),
+                forceRefresh ? calculateStats() : (await getFromCache(CACHE_KEYS.STATS(userId))) || calculateStats(),
             ]);
 
             setRecentRuns(recentRunsData);
             setWeeklyActivity(weeklyData);
             setMonthlyActivity(monthlyData);
             setStats(statsData);
+
+            // Update cache
+            await setToCache(CACHE_KEYS.RECENT_RUNS(userId), recentRunsData);
+            await setToCache(CACHE_KEYS.WEEKLY(userId), weeklyData);
+            await setToCache(CACHE_KEYS.MONTHLY(userId), monthlyData);
+            await setToCache(CACHE_KEYS.STATS(userId), statsData);
 
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
@@ -301,9 +353,26 @@ export function useRunData(userId: string) {
         }
     }, [userId]);
 
+    const debouncedLoadData = useCallback(debounce(() => loadData(true), 500), [loadData]);
+
+    // Real-time subscription
     useEffect(() => {
         loadData();
-    }, [loadData]);
+
+        const channel = supabase.channel(`public:runs:user_id=eq.${userId}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'runs', filter: `user_id=eq.${userId}` },
+                () => {
+                    debouncedLoadData();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            channel.unsubscribe();
+        };
+    }, [userId, loadData]);
 
     return {
         recentRuns,
@@ -324,6 +393,7 @@ export function useRunData(userId: string) {
                 const seconds = Math.round((pace - minutes) * 60);
                 return `${minutes}:${seconds.toString().padStart(2, '0')}`;
             },
+            getLastThreeMonthsData,
         },
     };
 }

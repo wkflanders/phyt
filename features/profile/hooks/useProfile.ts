@@ -22,7 +22,6 @@ export function useProfile(profileId: string) {
 
     const loadProfile = useCallback(async () => {
         if (!profileId) return;
-        console.log('Loading profile for ID:', profileId);
 
         try {
             setLoading(true);

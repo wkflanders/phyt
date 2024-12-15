@@ -37,7 +37,7 @@ export function ProfileHeader({
                         <TouchableOpacity onPress={onFollowersPress}>
                             <Text className="text-white">
                                 <Text className="font-bold">{followStats.followers}</Text>
-                                {' Followers'}
+                                {' Followers        '}
                             </Text>
                         </TouchableOpacity>
 

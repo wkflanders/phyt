@@ -1,13 +1,21 @@
 import { View, Text, Image } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { Wallet } from '@/components/Wallet';
+import { usePrivy } from "@privy-io/expo";
+import { router } from 'expo-router';
 
 import icons from "@/constants/icons";
 import images from "@/constants/images";
 
 const Header = () => {
+    const { user } = usePrivy();
+
     const showWallet = () => {
 
+    };
+
+    const handleProfilePress = () => {
+        router.push(`/(modals)/profile/${user?.id}`);
     };
     return (
         <View className="flex flex-row bg-black h-[10vh] justify-center items-center">
@@ -24,7 +32,7 @@ const Header = () => {
                 <Icon
                     icon={icons.profile}
                     onPress={() => {
-
+                        handleProfilePress();
                     }}
                     label={'profile'}
                 />

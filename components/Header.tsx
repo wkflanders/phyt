@@ -15,7 +15,7 @@ const Header = () => {
     };
 
     const handleProfilePress = () => {
-        router.push(`/(modals)/profile/${user?.id}`);
+        router.push(`/profile/${user?.id}`);
     };
     return (
         <View className="flex flex-row bg-black h-[10vh] justify-center items-center">

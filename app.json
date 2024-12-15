@@ -27,7 +27,8 @@
         ],
         "NSLocationWhenInUseUsageDescription": "This app requires access to your location when open.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app requires access to your location even when closed.",
-        "NSLocationAlwaysUsageDescription": "This app requires access to your location when open."
+        "NSLocationAlwaysUsageDescription": "This app requires access to your location when open.",
+        "UIViewControllerBasedStatusBarAppearance": true
       }
     },
     "android": {
@@ -58,6 +59,13 @@
           "ios": {
             "useFrameworks": "static"
           }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera"
         }
       ],
       [

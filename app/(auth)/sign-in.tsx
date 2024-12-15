@@ -38,12 +38,11 @@ const SignIn = () => {
                     wallet.create({ recoveryMethod: 'privy' });
                 }
 
-                router.push('/home');
+                router.push('/(auth)/onboard');
             } catch (error) {
                 console.error('Error creating supabase user:', error);
                 setError('Failed to create user profile');
             }
-            router.push('/home');
         }
     });
 
@@ -94,7 +93,6 @@ const SignIn = () => {
                             textStyles="font-intersemibold"
                             isLoading={isSubmitting}
                         />
-
                     </View>
                 </View>
             </ScrollView>

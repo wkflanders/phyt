@@ -4,6 +4,7 @@ import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { ProfileHeader } from '@/features/profile/components/ProfileHeader';
 import { useProfile } from '@/features/profile/hooks/useProfile';
 import { ScrollView } from 'react-native-gesture-handler';
+import { UserSearch } from '@/features/profile/components/UserSearch';
 
 export default function ProfileScreen() {
     const { id } = useLocalSearchParams<{ id: string; }>();
@@ -39,7 +40,7 @@ export default function ProfileScreen() {
                     ),
                 }}
             />
-
+            <UserSearch />
             <ScrollView
                 refreshControl={
                     <RefreshControl

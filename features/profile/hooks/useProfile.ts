@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
 
@@ -22,6 +22,7 @@ export function useProfile(profileId: string) {
 
     const loadProfile = useCallback(async () => {
         if (!profileId) return;
+        console.log('Loading profile for ID:', profileId);
 
         try {
             setLoading(true);
@@ -94,6 +95,10 @@ export function useProfile(profileId: string) {
     };
 
     const refreshProfile = useCallback(() => loadProfile(), [loadProfile]);
+
+    useEffect(() => {
+        loadProfile();
+    }, [loadProfile]);
 
     return {
         profile,

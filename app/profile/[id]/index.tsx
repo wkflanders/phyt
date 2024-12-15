@@ -5,6 +5,7 @@ import { ProfileHeader } from '@/features/profile/components/ProfileHeader';
 import { useProfile } from '@/features/profile/hooks/useProfile';
 import { ScrollView } from 'react-native-gesture-handler';
 import { UserSearch } from '@/features/profile/components/UserSearch';
+import { MonthlyActivityChart } from '@/features/profile/components/MonthlyActivityChart';
 
 export default function ProfileScreen() {
     const { id } = useLocalSearchParams<{ id: string; }>();
@@ -59,6 +60,10 @@ export default function ProfileScreen() {
                     onFollowersPress={() => router.push(`/profile/${id}/followers`)}
                     onFollowingPress={() => router.push(`/profile/${id}/following`)}
                     onEditPress={() => router.push(`/profile/edit`)}
+                />
+
+                <MonthlyActivityChart
+                    userId={id}
                 />
             </ScrollView>
         </View>

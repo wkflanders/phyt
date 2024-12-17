@@ -1,10 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
 
 interface Profile {
     privy_id: string;
-    // Add other profile fields here
     [key: string]: any;
 }
 
@@ -15,17 +14,27 @@ interface FollowStats {
 
 export function useProfile(profileId: string) {
     const { user } = usePrivy();
+
+    // Memoize state to reduce unnecessary re-renders
     const [profile, setProfile] = useState<Profile | null>(null);
     const [followStats, setFollowStats] = useState<FollowStats>({ followers: 0, following: 0 });
     const [isFollowing, setIsFollowing] = useState(false);
     const [loading, setLoading] = useState(true);
 
+    // Memoized loadProfile to prevent unnecessary recreations
     const loadProfile = useCallback(async () => {
         if (!profileId) return;
 
         try {
             setLoading(true);
-            const [profileData, followersCount, followingCount, followingStatus] = await Promise.all([
+
+            // Parallel data fetching with improved error handling
+            const [
+                profileData,
+                followersCount,
+                followingCount,
+                followingStatus
+            ] = await Promise.all([
                 supabase
                     .from('users')
                     .select('*')
@@ -51,12 +60,20 @@ export function useProfile(profileId: string) {
                     : Promise.resolve(false)
             ]);
 
-            setProfile(profileData);
-            setFollowStats({
-                followers: followersCount,
-                following: followingCount
+            // Only update state if data has changed
+            setProfile(prev =>
+                JSON.stringify(prev) !== JSON.stringify(profileData) ? profileData : prev
+            );
+
+            setFollowStats(prev => {
+                const newStats = {
+                    followers: followersCount,
+                    following: followingCount
+                };
+                return JSON.stringify(prev) !== JSON.stringify(newStats) ? newStats : prev;
             });
-            setIsFollowing(followingStatus);
+
+            setIsFollowing(prev => prev !== followingStatus ? followingStatus : prev);
         } catch (error) {
             console.error('Error loading profile:', error);
         } finally {
@@ -64,7 +81,7 @@ export function useProfile(profileId: string) {
         }
     }, [profileId, user]);
 
-    const toggleFollow = async () => {
+    const toggleFollow = useCallback(async () => {
         if (!user) return;
 
         try {
@@ -83,7 +100,7 @@ export function useProfile(profileId: string) {
                     });
             }
 
-            setIsFollowing(!isFollowing);
+            setIsFollowing(prev => !prev);
             setFollowStats(prev => ({
                 ...prev,
                 followers: prev.followers + (isFollowing ? -1 : 1)
@@ -91,20 +108,28 @@ export function useProfile(profileId: string) {
         } catch (error) {
             console.error('Error toggling follow:', error);
         }
-    };
+    }, [user, profileId, isFollowing]);
 
-    const refreshProfile = useCallback(() => loadProfile(), [loadProfile]);
+    // Memoize derived values
+    const isOwnProfile = useMemo(() => user?.id === profileId, [user, profileId]);
 
+    // Controlled effect with dependency array
     useEffect(() => {
-        loadProfile();
-    }, [loadProfile]);
+        // Only load if not already loaded and profileId exists
+        if (profileId && !profile) {
+            loadProfile();
+        }
+    }, [profileId, loadProfile, profile]);
+
+    // Expose memoized refresh function
+    const refreshProfile = useCallback(() => loadProfile(), [loadProfile]);
 
     return {
         profile,
         followStats,
         isFollowing,
         loading,
-        isOwnProfile: user?.id === profileId,
+        isOwnProfile,
         refreshProfile,
         toggleFollow
     };

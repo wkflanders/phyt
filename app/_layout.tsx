@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { SplashScreen, Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
@@ -67,6 +67,7 @@ const RootLayout = () => {
                                     <Stack.Screen name="(auth)" options={{ headerShown: false }} />
                                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                                     <Stack.Screen name="profile" options={{ headerShown: false }} />
+                                    <Stack.Screen name="post" options={{ headerShown: false }} />
                                 </Stack>
                             </BottomSheetModalProvider>
                         </ThirdwebProvider>

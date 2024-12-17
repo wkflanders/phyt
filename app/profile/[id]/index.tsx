@@ -5,7 +5,9 @@ import { ProfileHeader } from '@/features/profile/components/ProfileHeader';
 import { useProfile } from '@/features/profile/hooks/useProfile';
 import { ScrollView } from 'react-native-gesture-handler';
 import { UserSearch } from '@/features/profile/components/UserSearch';
+import { useRunData } from "@/features/runs/hooks/useRunData";
 import { MonthlyActivityChart } from '@/features/profile/components/MonthlyActivityChart';
+import { WeeklyStats } from '@/features/profile/components/WeeklyStats';
 
 export default function ProfileScreen() {
     const { id } = useLocalSearchParams<{ id: string; }>();
@@ -18,14 +20,21 @@ export default function ProfileScreen() {
         toggleFollow,
         isFollowing
     } = useProfile(id);
+    const {
+        stats,
+        helpers,
+        refresh: refreshRunData,
+        loading: runDataLoading
+    } = useRunData(id);
 
-    // Handle deep linking with correct path format
-    useEffect(() => {
-        if (!id) {
-            // Using the root-level tabs path
-            router.replace('/');
-        }
-    }, [id]);
+    const handleRefresh = async () => {
+        await Promise.all([
+            refreshProfile(),
+            refreshRunData(true)  // Force refresh
+        ]);
+    };
+
+    console.log('ProfileScreen render, stats:', stats?.totalDuration);
 
     return (
         <View className="flex-1 bg-black">
@@ -45,8 +54,8 @@ export default function ProfileScreen() {
             <ScrollView
                 refreshControl={
                     <RefreshControl
-                        refreshing={loading}
-                        onRefresh={refreshProfile}
+                        refreshing={loading || runDataLoading}
+                        onRefresh={handleRefresh}
                         tintColor="#00F6FB"
                     />
                 }
@@ -61,10 +70,11 @@ export default function ProfileScreen() {
                     onFollowingPress={() => router.push(`/profile/${id}/following`)}
                     onEditPress={() => router.push(`/profile/edit`)}
                 />
-
-                <MonthlyActivityChart
-                    userId={id}
-                />
+                <Text className="text-2xl text-white text-center mt-6 mb-3 font-intersemibold">
+                    Recent Activity
+                </Text>
+                <WeeklyStats stats={stats} />
+                <MonthlyActivityChart data={helpers.getLastThreeMonthsData()} />
             </ScrollView>
         </View>
     );

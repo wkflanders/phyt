@@ -4,6 +4,7 @@ import * as TaskManager from 'expo-task-manager';
 import { supabase } from '@/lib/supabase';
 import { usePrivy } from '@privy-io/expo';
 import { Alert, Linking, AppState, AppStateStatus } from 'react-native';
+import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 
@@ -196,24 +197,27 @@ export const useRecord = () => {
     }
 
     const hasPermissions = await requestPermissions();
-    if (!hasPermissions) {
-      return;
-    }
+    if (!hasPermissions) return;
 
     try {
       const { data: run, error: runError } = await supabase
         .from('runs')
-        .insert([
-          {
-            started_at: new Date().toISOString(),
-            status: 'in_progress',
-            user_id: user.id,
-          }
-        ])
+        .insert([{
+          started_at: new Date().toISOString(),
+          status: 'in_progress',
+          user_id: user.id,
+        }])
         .select()
         .single();
 
       if (runError) throw runError;
+
+      // Emit start event
+      runEvents.emit(RUN_EVENTS.RUN_STARTED, {
+        runId: run.id,
+        userId: user.id,
+        started_at: run.started_at
+      });
 
       setCurrentRun(run);
       setSegments([[]]);
@@ -222,6 +226,7 @@ export const useRecord = () => {
       setPauseStart(null);
       setTotalPausedTime(0);
 
+      // Start location tracking
       await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         ...LOCATION_SETTINGS,
         foregroundService: {
@@ -320,8 +325,9 @@ export const useRecord = () => {
 
   const finishRecording = async () => {
     try {
-      if (!currentRun) return;
+      if (!currentRun || !user) return;
 
+      // Cleanup location tracking
       if (locationSubscription.current) {
         await locationSubscription.current.remove();
         locationSubscription.current = null;
@@ -338,6 +344,7 @@ export const useRecord = () => {
         }
       }
 
+      // Get all locations for this run
       const { data: allLocations, error: locationsError } = await supabase
         .from('run_locations')
         .select('*')
@@ -349,11 +356,13 @@ export const useRecord = () => {
       const distance = calculateTotalDistance(allLocations);
       const duration = calculateDuration(currentRun.started_at, totalPausedTime);
       const avgSpeed = calculateAverageSpeed(distance, duration);
+      const endTime = new Date().toISOString();
 
+      // Update run in database
       const { error: updateError } = await supabase
         .from('runs')
         .update({
-          ended_at: new Date().toISOString(),
+          ended_at: endTime,
           status: 'completed',
           distance_meters: distance,
           duration_seconds: duration,
@@ -363,10 +372,23 @@ export const useRecord = () => {
 
       if (updateError) throw updateError;
 
+      // Emit completion event
+      runEvents.emit(RUN_EVENTS.RUN_COMPLETED, {
+        runId: currentRun.id,
+        userId: user.id,
+        distance_meters: distance,
+        duration_seconds: duration,
+        started_at: currentRun.started_at,
+        ended_at: endTime,
+        // title: currentRun.title
+      });
+
+      // Reset state
       setIsRecording(false);
       setIsPaused(false);
       setCurrentRun(null);
       setSegments([]);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     }

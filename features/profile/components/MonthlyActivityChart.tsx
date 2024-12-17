@@ -3,32 +3,24 @@ import { View, Text, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { useRunData } from '@/features/runs/hooks/useRunData';
 
-export function MonthlyActivityChart({ userId }: { userId: string; }) {
-    const { helpers } = useRunData(userId);
-
+export function MonthlyActivityChart({ data }: { data: { month: string; distance: number[]; }[]; }) {
     const chartData = useMemo(() => {
-        const lastThreeMonthsData = helpers.getLastThreeMonthsData();
-
-        // Flatten the data into a single array for charting
-        const labels = lastThreeMonthsData.map((monthData) => monthData.month); // ["OCT", "NOV", "DEC"]
-        const distances = lastThreeMonthsData.flatMap((monthData) => monthData.distance);
+        const labels = data.map((monthData) => monthData.month);
+        const distances = data.flatMap((monthData) => monthData.distance);
         const isEmpty = distances.every((value) => value === 0);
 
         return {
             labels: labels,
-            datasets: [
-                {
-                    data: isEmpty ? [0] : distances,
-                    color: () => '#FE205D', // Strava-like red
-                    strokeWidth: 2,
-                },
-            ],
+            datasets: [{
+                data: isEmpty ? [0] : distances,
+                color: () => '#FE205D',
+                strokeWidth: 2,
+            }],
         };
-    }, [helpers]);
+    }, [data]);
 
     return (
         <View className="my-5 bg-black rounded-lg p-4">
-            <Text className="text-2xl text-white text-center mb-3 font-intersemibold">Recent Activity</Text>
             <LineChart
                 data={chartData}
                 width={Dimensions.get('window').width - 20}

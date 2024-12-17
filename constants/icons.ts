@@ -12,6 +12,12 @@ import profile from "@/assets/icons/profile.png";
 import message from "@/assets/icons/message.png";
 import start from "@/assets/icons/start.png";
 import stop from "@/assets/icons/stop.png";
+import like from "@/assets/icons/like.png";
+import heart from "@/assets/icons/heart.png";
+import celebrate from "@/assets/icons/celebrate.png";
+import comment from "@/assets/icons/celebrate.png";
+import share from "@/assets/icons/share.png";
+import send from "@/assets/icons/send.png";
 
 export default {
     home,
@@ -28,4 +34,10 @@ export default {
     message,
     start,
     stop,
+    like,
+    heart,
+    celebrate,
+    comment,
+    share,
+    send
 };

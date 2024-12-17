@@ -1,9 +1,8 @@
-import { useRef, useMemo, useCallback } from 'react';
+import React, { useRef, useMemo, useCallback } from 'react';
 
 import { View, Image, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
 import icons from '@/constants/icons';
 import { BottomSheetView, BottomSheetModalProvider, BottomSheetModal, useBottomSheetModal } from '@gorhom/bottom-sheet';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { RecordScreen } from '@/features/record/components/RecordScreen';
 

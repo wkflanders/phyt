@@ -1,24 +1,8 @@
 import { useState } from 'react';
 import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
+import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
 
-interface Post {
-    id: string;
-    user_id: string;
-    content: string;
-    run_id?: string;
-    visibility: 'public' | 'private' | 'followers';
-    created_at: string;
-    updated_at: string;
-}
-
-interface Comment {
-    id: string;
-    post_id: string;
-    user_id: string;
-    content: string;
-    created_at: string;
-}
 
 interface Reaction {
     id: string;
@@ -57,13 +41,23 @@ export const usePost = () => {
                     user_id: user.id
                 })
                 .select(`
-          *,
-          user:users!posts_user_id_fkey(username, display_name, avatar_url),
-          run:runs(*)
-        `)
+                    *,
+                    user:users!posts_user_id_fkey (
+                        privy_id,
+                        username,
+                        display_name,
+                        avatar_url
+                    ),
+                    run:runs(*),
+                    comments:comments(count),
+                    reactions:reactions(count)
+                `)
                 .single();
 
             if (postError) throw postError;
+
+            // Emit post created event
+            runEvents.emit(RUN_EVENTS.POST_CREATED, { post: data });
             return data;
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to create post';
@@ -83,7 +77,8 @@ export const usePost = () => {
             setLoading(true);
             setError(null);
 
-            const { data, error: commentError } = await supabase
+            // First create the comment
+            const { data: newComment, error: commentError } = await supabase
                 .from('comments')
                 .insert({
                     post_id: postId,
@@ -91,13 +86,54 @@ export const usePost = () => {
                     user_id: user.id
                 })
                 .select(`
-          *,
-          user:users!comments_user_id_fkey(username, display_name, avatar_url)
-        `)
+                    *,
+                    user:users!comments_user_id_fkey (
+                        privy_id,
+                        username,
+                        display_name,
+                        avatar_url
+                    )
+                `)
                 .single();
 
             if (commentError) throw commentError;
-            return data;
+
+            // Then get the updated post with all comments
+            const { data: updatedPost, error: postError } = await supabase
+                .from('posts')
+                .select(`
+                    *,
+                    user:users!posts_user_id_fkey (
+                        privy_id,
+                        username,
+                        display_name,
+                        avatar_url
+                    ),
+                    run:runs(*),
+                    comments(
+                        *,
+                        user:users!comments_user_id_fkey (
+                            privy_id,
+                            username,
+                            display_name,
+                            avatar_url
+                        )
+                    ),
+                    reactions(count)
+                `)
+                .eq('id', postId)
+                .single();
+
+            if (postError) throw postError;
+
+            // Emit comment created event with full post data
+            runEvents.emit(RUN_EVENTS.COMMENT_CREATED, {
+                postId,
+                comment: newComment,
+                updatedPost
+            });
+
+            return newComment;
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to add comment';
             setError(message);
@@ -167,10 +203,15 @@ export const usePost = () => {
                 supabase
                     .from('posts')
                     .select(`
-            *,
-            user:users!posts_user_id_fkey(username, display_name, avatar_url),
-            run:runs(*)
-          `)
+                        *,
+                        user:users!posts_user_id_fkey (
+                            privy_id,
+                            username,
+                            display_name,
+                            avatar_url
+                        ),
+                        run:runs(*)
+                    `)
                     .eq('id', postId)
                     .single(),
 
@@ -178,9 +219,14 @@ export const usePost = () => {
                 supabase
                     .from('comments')
                     .select(`
-            *,
-            user:users!comments_user_id_fkey(username, display_name, avatar_url)
-          `)
+                        *,
+                        user:users!comments_user_id_fkey (
+                            privy_id,
+                            username,
+                            display_name,
+                            avatar_url
+                        )
+                    `)
                     .eq('post_id', postId)
                     .order('created_at', { ascending: true }),
 
@@ -188,9 +234,14 @@ export const usePost = () => {
                 supabase
                     .from('reactions')
                     .select(`
-            *,
-            user:users!reactions_user_id_fkey(username, display_name, avatar_url)
-          `)
+                        *,
+                        user:users!reactions_user_id_fkey (
+                            privy_id,
+                            username,
+                            display_name,
+                            avatar_url
+                        )
+                    `)
                     .eq('post_id', postId)
             ]);
 
@@ -212,7 +263,7 @@ export const usePost = () => {
         }
     };
 
-    const getFeed = async (limit = 20, startAfter?: string, userId?: string) => {
+    const getFeed = async (limit = 20, startAfter?: string) => {
         if (!user?.id) {
             throw new Error('User not authenticated');
         }
@@ -225,21 +276,19 @@ export const usePost = () => {
                 .from('posts')
                 .select(`
                     *,
-                    user:users!posts_user_id_fkey(username, display_name, avatar_url),
+                    user:users!posts_user_id_fkey (
+                        privy_id,
+                        username,
+                        display_name,
+                        avatar_url
+                    ),
                     run:runs(*),
-                    comments(count),
-                    reactions(count)
+                    comments:comments(count),
+                    reactions:reactions(count)
                 `)
+                .or(`visibility.eq.public,user_id.eq.${user.id}`)
                 .order('created_at', { ascending: false })
                 .limit(limit);
-
-            // If userId is provided, only get that user's posts
-            if (userId) {
-                query = query.eq('user_id', userId);
-            } else {
-                // Otherwise get public posts and user's own posts
-                query = query.or(`visibility.eq.public,user_id.eq.${user.id}`);
-            }
 
             if (startAfter) {
                 query = query.lt('created_at', startAfter);

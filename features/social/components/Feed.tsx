@@ -1,9 +1,10 @@
-// @/features/social/components/Feed.tsx
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, RefreshControl, ActivityIndicator, Text } from 'react-native';
 import { router } from 'expo-router';
-import { Post, type FeedPost } from './Post';
+import { Post } from './Post';
 import { usePost } from '../hooks/usePosts';
+import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
+import { FeedPost } from '@/types/types';
 
 interface FeedProps {
     userId?: string;
@@ -23,7 +24,7 @@ export function Feed({ userId }: FeedProps) {
             }
 
             const lastPost = !refresh && posts.length > 0 ? posts[posts.length - 1] : undefined;
-            const newPosts = await getFeed(20, lastPost?.created_at, userId);
+            const newPosts = await getFeed(20, lastPost?.created_at);
 
             if (newPosts.length < 20) {
                 setHasMore(false);
@@ -42,6 +43,35 @@ export function Feed({ userId }: FeedProps) {
         loadFeed(true);
     }, [userId]);
 
+    useEffect(() => {
+        const handleNewPost = ({ post }: { post: FeedPost; }) => {
+            setPosts(currentPosts => [post, ...currentPosts]);
+        };
+
+        const handleNewComment = ({ postId, comment, updatedPost }: {
+            postId: string;
+            comment: Comment;
+            updatedPost: FeedPost;
+        }) => {
+            setPosts(currentPosts =>
+                currentPosts.map(post => {
+                    if (post.id === postId) {
+                        return updatedPost;
+                    }
+                    return post;
+                })
+            );
+        };
+
+        runEvents.on(RUN_EVENTS.POST_CREATED, handleNewPost);
+        runEvents.on(RUN_EVENTS.COMMENT_CREATED, handleNewComment);
+
+        return () => {
+            runEvents.off(RUN_EVENTS.POST_CREATED, handleNewPost);
+            runEvents.off(RUN_EVENTS.COMMENT_CREATED, handleNewComment);
+        };
+    }, []);
+
     if (error) {
         return (
             <View className="flex-1 justify-center items-center">
@@ -49,13 +79,6 @@ export function Feed({ userId }: FeedProps) {
             </View>
         );
     }
-    const handlePostPress = (postId: string) => {
-        // Using href instead of push for type safety
-        router.navigate({
-            pathname: "/post/[id]",
-            params: { id: postId }
-        });
-    };
 
     return (
         <FlatList
@@ -63,7 +86,7 @@ export function Feed({ userId }: FeedProps) {
             renderItem={({ item: post }) => (
                 <Post
                     post={post}
-                    onPress={() => handlePostPress(post.id)}
+                    onPress={() => router.push(`/post/${post.id}`)}
                 />
             )}
             keyExtractor={(post) => post.id}

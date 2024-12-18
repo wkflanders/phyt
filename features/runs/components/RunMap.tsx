@@ -16,7 +16,7 @@ interface RouteLocation {
 }
 
 export function RunMap({ runId, height = 300 }: RunMapProps) {
-    const { loadRunDetails } = useRunData("");
+    const { loadRunDetails } = useRunData(runId);
     const [runData, setRunData] = useState<{ route: RunLocation[]; } | null>(null);
     const [loading, setLoading] = useState(true);
     const [mapRegion, setMapRegion] = useState<Region | undefined>();
@@ -100,18 +100,6 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
                 strokeColor="#00F6FB"
                 strokeWidth={3}
             />
-            {/* <Marker
-                coordinate={startPoint}
-                title="Start"
-                pinColor="#4CAF50" // Green for start
-                style={{ width: 40, height: 40 }}
-            />
-            <Marker
-                coordinate={endPoint}
-                title="Finish"
-                pinColor="#F44336" // Red for finish
-                style={{ width: 1, height: 1 }}
-            /> */}
         </MapView>
     );
 }

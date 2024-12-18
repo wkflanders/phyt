@@ -9,44 +9,7 @@ import icons from '@/constants/icons';
 import { router } from 'expo-router';
 import { Alert } from '@/components/ui/Alert';
 import * as Share from 'expo-sharing';
-
-interface User {
-    privy_id: string;
-    username: string;
-    display_name: string;
-    avatar_url: string;
-}
-
-interface Run {
-    id: string;
-    distance_meters: number;
-    duration_seconds: number;
-    average_speed: number;
-}
-
-interface Comment {
-    id: string;
-    content: string;
-    created_at: string;
-    user: User;
-}
-
-interface FeedPost {
-    id: string;
-    content: string;
-    created_at: string;
-    user: User;
-    run?: Run | null;
-    comments: Comment[];
-    reactions: {
-        count: number;
-        items?: Array<{
-            id: string;
-            type: 'like' | 'love' | 'celebrate';
-            user: User;
-        }>;
-    };
-}
+import { User, Run, Comment, FeedPost } from '@/types/types';
 
 interface PostProps {
     post: FeedPost;
@@ -102,6 +65,14 @@ export const Post = ({ post, isDetail = false, onPress }: PostProps) => {
         }
     };
 
+    const commentsCount = Array.isArray(post.comments)
+        ? post.comments.length
+        : post.comments.count;
+
+    const commentsList = Array.isArray(post.comments)
+        ? post.comments
+        : [];
+
     const PostContent = (
         <View className="bg-black border border-gray-800 rounded-lg mb-4">
             {/* Header */}
@@ -110,11 +81,11 @@ export const Post = ({ post, isDetail = false, onPress }: PostProps) => {
                 onPress={handleProfilePress}
             >
                 <Image
-                    source={{ uri: profile?.avatar_url || '/api/placeholder/40/40' }}
+                    source={{ uri: post.user.avatar_url || '/api/placeholder/40/40' }}
                     className="w-10 h-10 rounded-full"
                 />
                 <View className="ml-3 flex-1">
-                    <Text className="text-white font-bold">{profile?.display_name}</Text>
+                    <Text className="text-white font-bold">{post.user.display_name}</Text>
                     <Text className="text-gray-400 text-sm">
                         {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                     </Text>
@@ -184,7 +155,7 @@ export const Post = ({ post, isDetail = false, onPress }: PostProps) => {
                         color="#00F6FB"
                         onPress={() => isDetail ? null : setShowComments(!showComments)}
                     />
-                    <Text className="text-white ml-2">{post.comments.length}</Text>
+                    <Text className="text-white ml-2">{commentsCount}</Text>
                 </View>
 
                 <Icon
@@ -214,7 +185,7 @@ export const Post = ({ post, isDetail = false, onPress }: PostProps) => {
                         />
                     </View>
 
-                    {post.comments.map((comment) => (
+                    {commentsList.map((comment) => (
                         <View key={comment.id} className="mb-4">
                             <TouchableOpacity
                                 className="flex-row items-center mb-2"
@@ -247,11 +218,19 @@ export const Post = ({ post, isDetail = false, onPress }: PostProps) => {
 };
 
 const formatRunStats = (run: Run) => {
-    const miles = (run.distance_meters / 1609.34).toFixed(2);
-    const hours = Math.floor(run.duration_seconds / 3600);
-    const minutes = Math.floor((run.duration_seconds % 3600) / 60);
-    const seconds = run.duration_seconds % 60;
-    const pace = ((run.duration_seconds / 60) / (run.distance_meters / 1609.34)).toFixed(2);
+    // Default to 0 if undefined and handle division by zero
+    const distanceMeters = run.distance_meters || 0;
+    const durationSeconds = run.duration_seconds || 0;
+
+    const miles = (distanceMeters / 1609.34).toFixed(2);
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.floor((durationSeconds % 3600) / 60);
+    const seconds = durationSeconds % 60;
+
+    // Calculate pace, handling division by zero
+    const pace = distanceMeters > 0
+        ? ((durationSeconds / 60) / (distanceMeters / 1609.34)).toFixed(2)
+        : '0.00';
 
     return {
         distance: `${miles} mi`,
@@ -259,5 +238,3 @@ const formatRunStats = (run: Run) => {
         pace: `${pace} /mi`
     };
 };
-
-export type { FeedPost };

@@ -18,6 +18,7 @@ import celebrate from "@/assets/icons/celebrate.png";
 import comment from "@/assets/icons/celebrate.png";
 import share from "@/assets/icons/share.png";
 import send from "@/assets/icons/send.png";
+import close from "@/assets/icons/close.png";
 
 export default {
     home,
@@ -39,5 +40,6 @@ export default {
     celebrate,
     comment,
     share,
-    send
+    send,
+    close
 };

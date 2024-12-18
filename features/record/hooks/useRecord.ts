@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { usePrivy } from '@privy-io/expo';
 import { Alert, Linking, AppState, AppStateStatus } from 'react-native';
 import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
+import type { Run, RunLocation, LocationTaskOptions } from '@/types/types';
 
 const LOCATION_TASK_NAME = 'background-location-task';
 
@@ -15,30 +16,6 @@ const LOCATION_SETTINGS = {
   activityType: Location.ActivityType.Fitness, // Optimize for fitness activities
   showsBackgroundLocationIndicator: true, // iOS only
 };
-
-interface LocationTaskOptions extends Location.LocationTaskOptions {
-  runId?: string;
-}
-
-interface RunLocation {
-  run_id: string;
-  latitude: number;
-  longitude: number;
-  altitude: number | null;
-  timestamp: number;
-  speed: number | null;
-}
-
-interface Run {
-  id: string;
-  user_id: string;
-  started_at: string;
-  ended_at?: string;
-  status: 'in_progress' | 'completed';
-  distance_meters?: number;
-  duration_seconds?: number;
-  average_speed?: number;
-}
 
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   if (error) {
@@ -325,7 +302,7 @@ export const useRecord = () => {
 
   const finishRecording = async () => {
     try {
-      if (!currentRun || !user) return;
+      if (!currentRun || !user) return null;
 
       // Cleanup location tracking
       if (locationSubscription.current) {
@@ -358,8 +335,8 @@ export const useRecord = () => {
       const avgSpeed = calculateAverageSpeed(distance, duration);
       const endTime = new Date().toISOString();
 
-      // Update run in database
-      const { error: updateError } = await supabase
+      // Update run in database and get the updated run data
+      const { data: updatedRun, error: updateError } = await supabase
         .from('runs')
         .update({
           ended_at: endTime,
@@ -368,7 +345,9 @@ export const useRecord = () => {
           duration_seconds: duration,
           average_speed: avgSpeed,
         })
-        .eq('id', currentRun.id);
+        .eq('id', currentRun.id)
+        .select()
+        .single();
 
       if (updateError) throw updateError;
 
@@ -380,7 +359,6 @@ export const useRecord = () => {
         duration_seconds: duration,
         started_at: currentRun.started_at,
         ended_at: endTime,
-        // title: currentRun.title
       });
 
       // Reset state
@@ -389,8 +367,11 @@ export const useRecord = () => {
       setCurrentRun(null);
       setSegments([]);
 
+      return updatedRun;
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      return null;
     }
   };
 

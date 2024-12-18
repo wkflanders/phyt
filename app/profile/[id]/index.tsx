@@ -34,8 +34,6 @@ export default function ProfileScreen() {
         ]);
     };
 
-    console.log('ProfileScreen render, stats:', stats?.totalDuration);
-
     return (
         <View className="flex-1 bg-black">
             <Stack.Screen

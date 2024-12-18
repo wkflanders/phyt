@@ -5,6 +5,8 @@ import * as Location from 'expo-location';
 import { useRecord } from '../hooks/useRecord';
 import { Icon } from '@/components/Icon';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PostRunModal } from './PostRunModal';
+import type { Run } from '@/types/types';
 
 import icons from '@/constants/icons';
 import darkMapStyle from '@/constants/maps';
@@ -21,6 +23,8 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
     const mapRef = useRef<MapView>(null);
     const slideAnim = useRef(new Animated.Value(0)).current;
     const intervalRef = useRef<NodeJS.Timeout>();
+    const [showPostModal, setShowPostModal] = useState(false);
+    const [completedRun, setCompletedRun] = useState<Run | null>(null);
 
     const {
         isRecording,
@@ -178,8 +182,16 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
         resumeRecording();
     };
 
-    const handleFinish = () => {
-        finishRecording();
+    const handleFinish = async () => {
+        try {
+            const finishedRun = await finishRecording();
+            if (finishedRun) {
+                setCompletedRun(finishedRun);
+                setShowPostModal(true);
+            }
+        } catch (error) {
+            console.error('Error finishing run:', error);
+        }
     };
 
     return (
@@ -321,6 +333,17 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                     )}
                 </View>
             </View>
+            {showPostModal && completedRun && (
+                <PostRunModal
+                    visible={showPostModal}
+                    onClose={() => {
+                        setShowPostModal(false);
+                        setCompletedRun(null);
+                        closeMenu();
+                    }}
+                    run={completedRun}
+                />
+            )}
         </SafeAreaView>
     );
 };

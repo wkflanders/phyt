@@ -277,6 +277,17 @@ const Onboarding = () => {
 
             if (updateError) throw updateError;
 
+            const { error: poolError } = await supabase
+                .from('user_nft_pool')
+                .insert({
+                    display_name: formData.displayName,
+                    avatar_url: formData.avatarUrl
+                });
+
+            if (poolError) {
+                console.error('Error adding to NFT pool:', poolError);
+            }
+
             router.push('/home');
         } catch (err) {
             console.error('Error updating profile:', err);

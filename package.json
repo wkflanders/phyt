@@ -28,7 +28,7 @@
     "@rn-primitives/types": "^1.1.0",
     "@rneui/themed": "^4.0.0-rc.8",
     "@supabase/supabase-js": "^2.47.7",
-    "@thirdweb-dev/react-native-adapter": "^1.5.2",
+    "@thirdweb-dev/react-native-adapter": "^1.5.3",
     "@types/lodash": "^4.17.13",
     "@types/react-native": "^0.73.0",
     "@walletconnect/react-native-compat": "^2.17.2",
@@ -42,7 +42,6 @@
     "expo-application": "~6.0.1",
     "expo-build-properties": "~0.13.1",
     "expo-constants": "~17.0.3",
-    "expo-crypto": "~14.0.1",
     "expo-dev-client": "~5.0.6",
     "expo-font": "~13.0.1",
     "expo-image": "~2.0.3",
@@ -84,7 +83,7 @@
     "react-native-webview": "13.12.5",
     "tailwind-merge": "^2.5.5",
     "tailwindcss": "^3.4.16",
-    "thirdweb": "^5.78.0",
+    "thirdweb": "^5.79.0",
     "viem": "^2.21.55"
   },
   "devDependencies": {

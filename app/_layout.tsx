@@ -4,10 +4,11 @@ import { View, Text } from 'react-native';
 import { SplashScreen, Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { PrivyProvider } from '@privy-io/expo';
+import { PrivyProvider, PrivyElements } from '@privy-io/expo';
 import { ThirdwebProvider } from 'thirdweb/react';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { base } from 'viem/chains';
 
 import { PortalHost } from '@rn-primitives/portal';
@@ -34,6 +35,9 @@ const RootLayout = () => {
         "Inter-SemiBold": require("../assets/fonts/Inter-SemiBold.ttf"),
         "Inter-ExtraBold": require("../assets/fonts/Inter-ExtraBold.ttf"),
         "Inter-Black": require("../assets/fonts/Inter-Black.ttf"),
+        Inter_400Regular,
+        Inter_500Medium,
+        Inter_600SemiBold,
     });
 
     useEffect(() => {
@@ -69,6 +73,7 @@ const RootLayout = () => {
                                     <Stack.Screen name="profile" options={{ headerShown: false }} />
                                     <Stack.Screen name="post" options={{ headerShown: false }} />
                                 </Stack>
+                                <PrivyElements />
                             </BottomSheetModalProvider>
                         </ThirdwebProvider>
                     </PrivyProvider>

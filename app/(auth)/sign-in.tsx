@@ -4,9 +4,7 @@ import { useSupabaseUser } from '@/hooks/useSupabaseUser';
 import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useLoginWithEmail } from '@privy-io/expo';
-import { useEmbeddedWallet, isNotCreated } from '@privy-io/expo';
-
+import { useLoginWithEmail, useEmbeddedWallet, isNotCreated } from '@privy-io/expo';
 import { FormField } from '@/components/FormField';
 import { FunctionalButton } from '@/components/FunctionalButton';
 import {

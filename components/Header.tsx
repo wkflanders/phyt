@@ -1,6 +1,6 @@
 import { View, Text, Image } from 'react-native';
 import { Icon } from '@/components/Icon';
-import { Wallet } from '@/components/Wallet';
+import { Wallet } from '@/features/wallet/components/Wallet';
 import { usePrivy } from "@privy-io/expo";
 import { router } from 'expo-router';
 

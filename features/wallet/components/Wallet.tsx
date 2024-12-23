@@ -2,8 +2,10 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, Modal, Text, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { router } from 'expo-router';
-
 import { usePrivy, useEmbeddedWallet, isConnected, needsRecovery, getUserEmbeddedEthereumWallet, EIP1193Provider, isNotCreated } from '@privy-io/expo';
+import { useSetActiveWallet } from 'thirdweb/react';
+import { EIP1193 } from "thirdweb/wallets";
+import { client } from '@/lib/thirdweb';
 
 import icons from '@/constants/icons';
 
@@ -15,14 +17,26 @@ export const Wallet = () => {
     const wallet = useEmbeddedWallet();
     const account = getUserEmbeddedEthereumWallet(user);
 
-    // useEffect(() => {
-    //     (async () => {
-    //         if (user && wallet.status === "connected" && wallet.provider) {
-    //             await initializeThirdwebSDK(wallet.provider);
-    //             console.log("Thirdweb SDK initialized");
-    //         }
-    //     });
-    // }, [user, wallet.status, wallet.status === 'connected' ? wallet.provider : null]);
+    const setActiveWallet = useSetActiveWallet();
+
+    // Privy thirdweb adapter
+    useEffect(() => {
+        const setActive = async () => {
+            if (wallet) {
+                const ethersProvider = await wallet.getProvider();
+
+                const thirdwebWallet = EIP1193.fromProvider({
+                    provider: ethersProvider
+                });
+                await thirdwebWallet.connect({
+                    client: client,
+                });
+
+                setActiveWallet(thirdwebWallet);
+            }
+        };
+        setActive();
+    }, [wallet]);
 
     const handleWalletPress = async () => {
         if (!user) {

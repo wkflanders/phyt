@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, Text, Pressable } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
-import { Post, type FeedPost } from '@/features/social/components/Post';
+import { Post } from '@/features/social/components/Post';
 import { usePost } from '@/features/social/hooks/usePosts';
+import { FeedPost } from '@/types/types';
+import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
 
 export default function PostDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string; }>();
@@ -15,16 +17,8 @@ export default function PostDetailScreen() {
         const loadPost = async () => {
             try {
                 setLoading(true);
-                const postData = await getPostWithDetails(id);
-                const formattedPost: FeedPost = {
-                    ...postData.post,
-                    comments: postData.comments || [],
-                    reactions: {
-                        count: postData.reactions?.length || 0,
-                        items: postData.reactions || []
-                    }
-                };
-                setPost(formattedPost);
+                const postData: FeedPost | null = await getPostWithDetails(id);
+                setPost(postData);
             } catch (err) {
                 console.error('Error loading post:', err);
                 setError(err instanceof Error ? err.message : 'Failed to load post');
@@ -34,6 +28,24 @@ export default function PostDetailScreen() {
         };
 
         loadPost();
+    }, [id]);
+
+    useEffect(() => {
+        const handleCommentCreated = ({ postId, comment, updatedPost }: {
+            postId: string;
+            comment: Comment;
+            updatedPost: FeedPost;
+        }) => {
+            if (postId === id) {
+                setPost(updatedPost);
+            }
+        };
+
+        runEvents.on(RUN_EVENTS.COMMENT_CREATED, handleCommentCreated);
+
+        return () => {
+            runEvents.off(RUN_EVENTS.COMMENT_CREATED, handleCommentCreated);
+        };
     }, [id]);
 
     return (

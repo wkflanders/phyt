@@ -1,6 +1,6 @@
 // lib/runEvents.ts
 import EventEmitter from 'eventemitter3';
-import type { FeedPost } from '@/types/types';
+import type { FeedPost, PostMetadata } from '@/types/types';
 
 export interface RunCompletedEvent {
     runId: string;
@@ -14,6 +14,7 @@ export interface RunCompletedEvent {
 
 export interface PostCreatedEvent {
     post: FeedPost;
+    metadata?: PostMetadata;
 }
 
 export interface CommentCreatedEvent {

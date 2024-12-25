@@ -3,12 +3,13 @@ import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
 import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
 import { cache } from '@/lib/cache';
-import { Reaction, FeedPost } from '@/types/types';
+import { Reaction, FeedPost, PostMetadata } from '@/types/types';
 
 interface CreatePostParams {
     content: string;
     runId?: string;
     visibility?: 'public' | 'private' | 'followers';
+    includeMap?: boolean;
 }
 
 export const usePost = () => {
@@ -77,12 +78,14 @@ export const usePost = () => {
         }
     }, [user?.id]);
 
-    const createPost = async ({ content, runId, visibility = 'public' }: CreatePostParams) => {
+    const createPost = async ({ content, runId, visibility = 'public', includeMap = true }: CreatePostParams) => {
         if (!user?.id) throw new Error('User not authenticated');
 
         try {
             setLoading(true);
             setError(null);
+
+            const metadata: PostMetadata = { includeMap };
 
             const { data, error: postError } = await supabase
                 .rpc('create_post', {
@@ -97,7 +100,10 @@ export const usePost = () => {
             await cache.invalidate('feed');
             if (runId) await cache.invalidate('run', runId);
 
-            runEvents.emit(RUN_EVENTS.POST_CREATED, { post: data });
+            runEvents.emit(RUN_EVENTS.POST_CREATED, {
+                post: data,
+                metadata: metadata,
+            });
 
             return data;
         } catch (err) {

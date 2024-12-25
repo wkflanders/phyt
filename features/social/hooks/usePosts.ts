@@ -2,39 +2,8 @@ import { useState, useCallback } from 'react';
 import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
 import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
-
-interface User {
-    privy_id: string;
-    username: string;
-    display_name: string;
-    avatar_url?: string;
-}
-
-interface Comment {
-    id: string;
-    content: string;
-    created_at: string;
-    user: User;
-}
-
-interface Reaction {
-    id: string;
-    type: 'like' | 'love' | 'celebrate';
-    user: User;
-}
-
-interface Post {
-    id: string;
-    content: string;
-    created_at: string;
-    user: User;
-    run?: any; // Type this properly based on your run interface
-    comments: Comment[];
-    reactions: {
-        count: number;
-        items: Reaction[];
-    };
-}
+import { cache } from '@/lib/cache';
+import { Reaction } from '@/lib/types';
 
 interface CreatePostParams {
     content: string;
@@ -42,53 +11,61 @@ interface CreatePostParams {
     visibility?: 'public' | 'private' | 'followers';
 }
 
-const postCache = new Map<string, CacheItem<any>>();
-const CACHE_DURATION = 5 * 60 * 1000;
-const profileCache = new Map<string, CacheItem<any>>();
-
 export const usePost = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { user } = usePrivy();
 
-    const getCachedData = (key: string) => {
-        const cached = profileCache.get(key);
-        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-            return cached.data;
-        }
-        return null;
-    };
-
-    const setCachedData = (key: string, data: any) => {
-        profileCache.set(key, {
-            data,
-            timestamp: Date.now()
-        });
-    };
-
-    const invalidateCache = (postId?: string) => {
-        if (postId) {
-            postCache.delete(`post-${postId}`);
-        } else {
-            postCache.clear();
-        }
-    };
-
     const getPostWithDetails = useCallback(async (postId: string) => {
+        if (!postId) throw new Error('Post Id is required');
+
         try {
-            setLoading(true);
-            setError(null);
+            const cachedPost = await cache.get('post', postId);
+            if (cachedPost) return cachedPost;
 
-            const cacheKey = `post-${postId}`;
-            const cachedData = getCachedData(cacheKey);
+            const { data, error: postError } = await supabase
+                .rpc('get_post_detals', { post_id: postId });
 
+            if (postError) throw postError;
+            if (!data) throw new Error('Post not found');
+
+            await cache.set('post', postId, data);
+
+            return data;
+        } catch (err) {
+            console.error('Error fetching post: ', err);
+            throw err;
         }
     }, []);
 
-    const createPost = async ({ content, runId, visibility = 'public' }: CreatePostParams) => {
-        if (!user?.id) {
-            throw new Error('User not authenticated');
+    const getFeed = useCallback(async (limit = 20, startAfter?: string) => {
+        if (!user?.id) throw new Error('User not authenticated');
+
+        try {
+            const cacheKey = `feed_${limit}_${startAfter || 'initial'}`;
+            const cachedFeed = await cache.get('feed', cacheKey);
+            if (cachedFeed) return cachedFeed;
+
+            const { data, error: feedError } = await supabase
+                .rpc('get_feed', {
+                    p_user_id: user.id,
+                    p_limit: limit,
+                    p_start_after: startAfter
+                });
+
+            if (feedError) throw feedError;
+
+            await cache.set('feed', cacheKey, data || []);
+
+            return data || [];
+        } catch (err) {
+            console.error('Error fetching feed: ', err);
+            throw err;
         }
+    }, [user?.id]);
+
+    const createPost = async ({ content, runId, visibility = 'public' }: CreatePostParams) => {
+        if (!user?.id) throw new Error('User not authenticated');
 
         try {
             setLoading(true);
@@ -118,8 +95,15 @@ export const usePost = () => {
 
             if (postError) throw postError;
 
+            // Invalidate relevant caches
+            await cache.invalidate('feed');
+            if (runId) {
+                await cache.invalidate('run', runId);
+            }
+
             // Emit post created event
             runEvents.emit(RUN_EVENTS.POST_CREATED, { post: data });
+
             return data;
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to create post';
@@ -131,9 +115,7 @@ export const usePost = () => {
     };
 
     const addComment = async (postId: string, content: string) => {
-        if (!user?.id) {
-            throw new Error('User not authenticated');
-        }
+        if (!user?.id) throw new Error('User not authenticated');
 
         try {
             setLoading(true);
@@ -160,35 +142,15 @@ export const usePost = () => {
 
             if (commentError) throw commentError;
 
-            // Then get the updated post with all comments
-            const { data: updatedPost, error: postError } = await supabase
-                .from('posts')
-                .select(`
-                    *,
-                    user:users!posts_user_id_fkey (
-                        privy_id,
-                        username,
-                        display_name,
-                        avatar_url
-                    ),
-                    run:runs(*),
-                    comments(
-                        *,
-                        user:users!comments_user_id_fkey (
-                            privy_id,
-                            username,
-                            display_name,
-                            avatar_url
-                        )
-                    ),
-                    reactions(count)
-                `)
-                .eq('id', postId)
-                .single();
+            // Get the updated post details
+            const updatedPost = await getPostWithDetails(postId);
 
-            if (postError) throw postError;
+            // Invalidate post cache
+            await cache.invalidate('post', postId);
+            // Also invalidate feed cache since comment counts changed
+            await cache.invalidate('feed');
 
-            // Emit comment created event with full post data
+            // Emit comment created event
             runEvents.emit(RUN_EVENTS.COMMENT_CREATED, {
                 postId,
                 comment: newComment,
@@ -206,9 +168,7 @@ export const usePost = () => {
     };
 
     const toggleReaction = async (postId: string, type: Reaction['type']) => {
-        if (!user?.id) {
-            throw new Error('User not authenticated');
-        }
+        if (!user?.id) throw new Error('User not authenticated');
 
         try {
             setLoading(true);
@@ -230,22 +190,24 @@ export const usePost = () => {
                     .eq('id', existingReaction.id);
 
                 if (deleteError) throw deleteError;
-                return null;
             } else {
                 // Add new reaction
-                const { data, error: insertError } = await supabase
+                const { error: insertError } = await supabase
                     .from('reactions')
                     .insert({
                         post_id: postId,
                         type,
                         user_id: user.id
-                    })
-                    .select()
-                    .single();
+                    });
 
                 if (insertError) throw insertError;
-                return data;
             }
+
+            // Invalidate relevant caches
+            await cache.invalidate('post', postId);
+            await cache.invalidate('feed');
+
+            return !existingReaction;
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to toggle reaction';
             setError(message);
@@ -255,54 +217,8 @@ export const usePost = () => {
         }
     };
 
-    const getFeed = async (limit = 20, startAfter?: string) => {
-        if (!user?.id) {
-            throw new Error('User not authenticated');
-        }
-
-        try {
-            setLoading(true);
-            setError(null);
-
-            let query = supabase
-                .from('posts')
-                .select(`
-                    *,
-                    user:users!posts_user_id_fkey (
-                        privy_id,
-                        username,
-                        display_name,
-                        avatar_url
-                    ),
-                    run:runs(*),
-                    comments:comments(count),
-                    reactions:reactions(count)
-                `)
-                .or(`visibility.eq.public,user_id.eq.${user.id}`)
-                .order('created_at', { ascending: false })
-                .limit(limit);
-
-            if (startAfter) {
-                query = query.lt('created_at', startAfter);
-            }
-
-            const { data, error: feedError } = await query;
-
-            if (feedError) throw feedError;
-            return data;
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to load feed';
-            setError(message);
-            throw new Error(message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const deletePost = async (postId: string) => {
-        if (!user?.id) {
-            throw new Error('User not authenticated');
-        }
+        if (!user?.id) throw new Error('User not authenticated');
 
         try {
             setLoading(true);
@@ -315,6 +231,10 @@ export const usePost = () => {
                 .eq('user_id', user.id);
 
             if (deleteError) throw deleteError;
+
+            // Invalidate relevant caches
+            await cache.invalidate('post', postId);
+            await cache.invalidate('feed');
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to delete post';
             setError(message);

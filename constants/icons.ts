@@ -15,7 +15,7 @@ import stop from "@/assets/icons/stop.png";
 import like from "@/assets/icons/like.png";
 import heart from "@/assets/icons/heart.png";
 import celebrate from "@/assets/icons/celebrate.png";
-import comment from "@/assets/icons/celebrate.png";
+import comment from "@/assets/icons/comment.png";
 import share from "@/assets/icons/share.png";
 import send from "@/assets/icons/send.png";
 import close from "@/assets/icons/close.png";

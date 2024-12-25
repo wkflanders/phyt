@@ -85,36 +85,18 @@ export const usePost = () => {
             setError(null);
 
             const { data, error: postError } = await supabase
-                .from('posts')
-                .insert({
-                    content,
-                    run_id: runId,
-                    visibility,
-                    user_id: user.id
-                })
-                .select(`
-                    *,
-                    user:users!posts_user_id_fkey (
-                        privy_id,
-                        username,
-                        display_name,
-                        avatar_url
-                    ),
-                    run:runs(*),
-                    comments:comments(count),
-                    reactions:reactions(count)
-                `)
-                .single();
+                .rpc('create_post', {
+                    p_content: content,
+                    p_run_id: runId,
+                    p_visibility: visibility,
+                    p_user_id: user.id
+                });
 
             if (postError) throw postError;
 
-            // Invalidate relevant caches
             await cache.invalidate('feed');
-            if (runId) {
-                await cache.invalidate('run', runId);
-            }
+            if (runId) await cache.invalidate('run', runId);
 
-            // Emit post created event
             runEvents.emit(RUN_EVENTS.POST_CREATED, { post: data });
 
             return data;

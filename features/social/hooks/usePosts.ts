@@ -3,17 +3,43 @@ import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
 import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
 
-interface Reaction {
-    id: string;
-    post_id: string;
-    user_id: string;
-    type: 'like' | 'love' | 'celebrate';
-    created_at: string;
+interface User {
+    privy_id: string;
+    username: string;
+    display_name: string;
+    avatar_url?: string;
 }
 
-interface CacheItem<T> {
-    data: T;
-    timestamp: number;
+interface Comment {
+    id: string;
+    content: string;
+    created_at: string;
+    user: User;
+}
+
+interface Reaction {
+    id: string;
+    type: 'like' | 'love' | 'celebrate';
+    user: User;
+}
+
+interface Post {
+    id: string;
+    content: string;
+    created_at: string;
+    user: User;
+    run?: any; // Type this properly based on your run interface
+    comments: Comment[];
+    reactions: {
+        count: number;
+        items: Reaction[];
+    };
+}
+
+interface CreatePostParams {
+    content: string;
+    runId?: string;
+    visibility?: 'public' | 'private' | 'followers';
 }
 
 const postCache = new Map<string, CacheItem<any>>();
@@ -27,21 +53,21 @@ export const usePost = () => {
 
     const getCachedData = (key: string) => {
         const cached = profileCache.get(key);
-        if(cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
             return cached.data;
         }
         return null;
-    }
+    };
 
     const setCachedData = (key: string, data: any) => {
         profileCache.set(key, {
             data,
             timestamp: Date.now()
         });
-    }
+    };
 
     const invalidateCache = (postId?: string) => {
-        if(postId) {
+        if (postId) {
             postCache.delete(`post-${postId}`);
         } else {
             postCache.clear();
@@ -49,7 +75,7 @@ export const usePost = () => {
     };
 
     const getPostWithDetails = useCallback(async (postId: string) => {
-        try{
+        try {
             setLoading(true);
             setError(null);
 
@@ -57,7 +83,7 @@ export const usePost = () => {
             const cachedData = getCachedData(cacheKey);
 
         }
-    }, [])
+    }, []);
 
     const createPost = async ({ content, runId, visibility = 'public' }: CreatePostParams) => {
         if (!user?.id) {

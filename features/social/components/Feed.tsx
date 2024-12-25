@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Post } from './Post';
 import { usePost } from '../hooks/usePosts';
 import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
-import { FeedPost } from '@/types/types';
+import { FeedPost, PostMetadata, FeedPostWithMetadata } from '@/types/types';
 
 interface FeedProps {
     userId?: string;
@@ -12,7 +12,7 @@ interface FeedProps {
 
 export function Feed({ userId }: FeedProps) {
     const { getFeed, loading, error } = usePost();
-    const [posts, setPosts] = useState<FeedPost[]>([]);
+    const [posts, setPosts] = useState<FeedPostWithMetadata[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(true);
@@ -44,8 +44,11 @@ export function Feed({ userId }: FeedProps) {
     }, [userId]);
 
     useEffect(() => {
-        const handleNewPost = ({ post }: { post: FeedPost; }) => {
-            setPosts(currentPosts => [post, ...currentPosts]);
+        const handleNewPost = ({ post, metadata }: { post: FeedPost, metadata: PostMetadata; }) => {
+            setPosts(currentPosts => [{
+                ...post,
+                metadata
+            }, ...currentPosts]);
         };
 
         const handleNewComment = ({ postId, comment, updatedPost }: {
@@ -92,6 +95,7 @@ export function Feed({ userId }: FeedProps) {
                     key={post.id}
                     post={post}
                     onPress={() => router.push(`/post/${post.id}`)}
+                    includeMap={post.metadata?.includeMap}
                 />
             )}
             keyExtractor={(post) => post.id}

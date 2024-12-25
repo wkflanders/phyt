@@ -1,22 +1,22 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, Pressable } from 'react-native';
 import { formatDistanceToNow } from 'date-fns';
-import { useProfile } from '@/features/profile/hooks/useProfile';
 import { usePost } from '@/features/social/hooks/usePosts';
 import { RunMap } from '@/features/runs/components/RunMap';
 import { Icon } from '@/components/Icon';
 import icons from '@/constants/icons';
 import { router } from 'expo-router';
 import * as Share from 'expo-sharing';
-import { User, Run, Comment, FeedPost } from '@/types/types';
+import { Run, FeedPost } from '@/types/types';
 
 interface PostProps {
     post: FeedPost;
     isDetail?: boolean;
     onPress?: () => void;
+    includeMap?: boolean;
 }
 
-export const Post = ({ post, isDetail = false, onPress }: PostProps) => {
+export const Post = ({ post, isDetail = false, onPress, includeMap = true }: PostProps) => {
     const { addComment, toggleReaction } = usePost();
     const [showComments, setShowComments] = useState(isDetail);
     const [comment, setComment] = useState('');
@@ -114,10 +114,11 @@ export const Post = ({ post, isDetail = false, onPress }: PostProps) => {
                                     <Text className="text-white text-lg font-bold">{runStats.pace}</Text>
                                 </View>
                             </View>
-
-                            <View className="h-48 rounded-lg overflow-hidden">
-                                <RunMap runId={post.run.id} height={192} />
-                            </View>
+                            {includeMap && (
+                                <View className="h-48 rounded-lg overflow-hidden">
+                                    <RunMap runId={post.run.id} height={192} />
+                                </View>
+                            )}
                         </View>
                     </View>
                 )}

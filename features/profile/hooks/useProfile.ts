@@ -1,26 +1,8 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
-import { cache, getProfileCacheKey } from '@/lib/cache';
-
-interface Profile {
-    privy_id: string;
-    username: string;
-    display_name: string;
-    bio?: string;
-    avatar_url?: string;
-}
-
-interface FollowStats {
-    followers: number;
-    following: number;
-}
-
-interface ProfileData {
-    profile: Profile;
-    followStats: FollowStats;
-    isFollowing: boolean;
-}
+import { cache } from '@/lib/cache';
+import { Profile, FollowStats, ProfileData } from '@/lib/types';
 
 export function useProfile(profileId: string) {
     const { user } = usePrivy();

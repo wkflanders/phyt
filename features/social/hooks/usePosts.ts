@@ -3,7 +3,7 @@ import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
 import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
 import { cache } from '@/lib/cache';
-import { Reaction } from '@/types/types';
+import { Reaction, FeedPost } from '@/types/types';
 
 interface CreatePostParams {
     content: string;
@@ -16,22 +16,35 @@ export const usePost = () => {
     const [error, setError] = useState<string | null>(null);
     const { user } = usePrivy();
 
-    const getPostWithDetails = useCallback(async (postId: string) => {
+    const getPostWithDetails = useCallback(async (postId: string): Promise<FeedPost | null> => {
         if (!postId) throw new Error('Post Id is required');
 
         try {
-            const cachedPost = await cache.get('post', postId);
+            const cachedPost: FeedPost | null = await cache.get('post', postId);
             if (cachedPost) return cachedPost;
 
             const { data, error: postError } = await supabase
-                .rpc('get_post_detals', { post_id: postId });
+                .rpc('get_post_details', { p_post_id: postId });
 
             if (postError) throw postError;
             if (!data) throw new Error('Post not found');
 
-            await cache.set('post', postId, data);
+            const formattedData: FeedPost = {
+                id: data.post.id,
+                content: data.post.content,
+                created_at: data.post.created_at,
+                run: data.post.run,
+                user: data.post.user,
+                comments: data.comments || [],
+                reactions: {
+                    count: data.reactions?.length || 0,
+                    items: data.reactions || []
+                }
+            };
 
-            return data;
+            await cache.set('post', postId, formattedData);
+
+            return formattedData;
         } catch (err) {
             console.error('Error fetching post: ', err);
             throw err;
@@ -123,32 +136,20 @@ export const usePost = () => {
 
             // First create the comment
             const { data: newComment, error: commentError } = await supabase
-                .from('comments')
-                .insert({
-                    post_id: postId,
-                    content,
-                    user_id: user.id
-                })
-                .select(`
-                    *,
-                    user:users!comments_user_id_fkey (
-                        privy_id,
-                        username,
-                        display_name,
-                        avatar_url
-                    )
-                `)
-                .single();
+                .rpc('add_comment', {
+                    p_post_id: postId,
+                    p_user_id: user.id,
+                    p_content: content
+                });
 
             if (commentError) throw commentError;
-
-            // Get the updated post details
-            const updatedPost = await getPostWithDetails(postId);
 
             // Invalidate post cache
             await cache.invalidate('post', postId);
             // Also invalidate feed cache since comment counts changed
             await cache.invalidate('feed');
+
+            const updatedPost = await getPostWithDetails(postId);
 
             // Emit comment created event
             runEvents.emit(RUN_EVENTS.COMMENT_CREATED, {
@@ -157,7 +158,7 @@ export const usePost = () => {
                 updatedPost
             });
 
-            return newComment;
+            return updatedPost;
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to add comment';
             setError(message);

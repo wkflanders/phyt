@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
 import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
-
 
 interface Reaction {
     id: string;
@@ -12,16 +11,53 @@ interface Reaction {
     created_at: string;
 }
 
-interface CreatePostParams {
-    content: string;
-    runId?: string;
-    visibility?: 'public' | 'private' | 'followers';
+interface CacheItem<T> {
+    data: T;
+    timestamp: number;
 }
+
+const postCache = new Map<string, CacheItem<any>>();
+const CACHE_DURATION = 5 * 60 * 1000;
+const profileCache = new Map<string, CacheItem<any>>();
 
 export const usePost = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { user } = usePrivy();
+
+    const getCachedData = (key: string) => {
+        const cached = profileCache.get(key);
+        if(cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+            return cached.data;
+        }
+        return null;
+    }
+
+    const setCachedData = (key: string, data: any) => {
+        profileCache.set(key, {
+            data,
+            timestamp: Date.now()
+        });
+    }
+
+    const invalidateCache = (postId?: string) => {
+        if(postId) {
+            postCache.delete(`post-${postId}`);
+        } else {
+            postCache.clear();
+        }
+    };
+
+    const getPostWithDetails = useCallback(async (postId: string) => {
+        try{
+            setLoading(true);
+            setError(null);
+
+            const cacheKey = `post-${postId}`;
+            const cachedData = getCachedData(cacheKey);
+
+        }
+    }, [])
 
     const createPost = async ({ content, runId, visibility = 'public' }: CreatePostParams) => {
         if (!user?.id) {
@@ -186,76 +222,6 @@ export const usePost = () => {
             }
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to toggle reaction';
-            setError(message);
-            throw new Error(message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const getPostWithDetails = async (postId: string) => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const [postResult, commentsResult, reactionsResult] = await Promise.all([
-                // Get post with user and run details
-                supabase
-                    .from('posts')
-                    .select(`
-                        *,
-                        user:users!posts_user_id_fkey (
-                            privy_id,
-                            username,
-                            display_name,
-                            avatar_url
-                        ),
-                        run:runs(*)
-                    `)
-                    .eq('id', postId)
-                    .single(),
-
-                // Get comments with user details
-                supabase
-                    .from('comments')
-                    .select(`
-                        *,
-                        user:users!comments_user_id_fkey (
-                            privy_id,
-                            username,
-                            display_name,
-                            avatar_url
-                        )
-                    `)
-                    .eq('post_id', postId)
-                    .order('created_at', { ascending: true }),
-
-                // Get reactions with user details
-                supabase
-                    .from('reactions')
-                    .select(`
-                        *,
-                        user:users!reactions_user_id_fkey (
-                            privy_id,
-                            username,
-                            display_name,
-                            avatar_url
-                        )
-                    `)
-                    .eq('post_id', postId)
-            ]);
-
-            if (postResult.error) throw postResult.error;
-            if (commentsResult.error) throw commentsResult.error;
-            if (reactionsResult.error) throw reactionsResult.error;
-
-            return {
-                post: postResult.data,
-                comments: commentsResult.data,
-                reactions: reactionsResult.data
-            };
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to load post';
             setError(message);
             throw new Error(message);
         } finally {

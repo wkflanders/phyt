@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FunctionalButton } from '@/components/FunctionalButton';
 
 import { images } from "@/constants";
-import { useSupabaseUser } from '@/hooks/useSupabaseUser';
+import { useSupabaseUser } from '@/lib/useSupabaseUser';
 
 export default function App() {
     const { user, isReady } = usePrivy();

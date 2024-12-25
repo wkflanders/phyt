@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSupabaseUser } from '@/hooks/useSupabaseUser';
+import { useSupabaseUser } from '@/lib/useSupabaseUser';
 
 import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

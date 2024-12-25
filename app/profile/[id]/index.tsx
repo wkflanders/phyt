@@ -71,8 +71,8 @@ export default function ProfileScreen() {
                 <Text className="text-2xl text-white text-center mt-6 mb-3 font-intersemibold">
                     Recent Activity
                 </Text>
-                <WeeklyStats stats={stats} />
-                <MonthlyActivityChart data={helpers.getLastThreeMonthsData()} />
+                {/* <WeeklyStats stats={stats} /> */}
+                {/* <MonthlyActivityChart data={helpers.getLastThreeMonthsData()} /> */}
             </ScrollView>
         </View>
     );

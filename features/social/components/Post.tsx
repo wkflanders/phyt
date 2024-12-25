@@ -7,7 +7,6 @@ import { RunMap } from '@/features/runs/components/RunMap';
 import { Icon } from '@/components/Icon';
 import icons from '@/constants/icons';
 import { router } from 'expo-router';
-import { Alert } from '@/components/ui/Alert';
 import * as Share from 'expo-sharing';
 import { User, Run, Comment, FeedPost } from '@/types/types';
 
@@ -18,7 +17,6 @@ interface PostProps {
 }
 
 export const Post = ({ post, isDetail = false, onPress }: PostProps) => {
-    const { profile } = useProfile(post.user.privy_id);
     const { addComment, toggleReaction } = usePost();
     const [showComments, setShowComments] = useState(isDetail);
     const [comment, setComment] = useState('');

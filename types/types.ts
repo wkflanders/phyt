@@ -5,8 +5,8 @@ export interface User {
     display_name: string;
     bio?: string;
     avatar_url?: string;
-    created_at: string;
-    updated_at: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 // Profile Types
@@ -115,7 +115,7 @@ export interface FeedPost {
     comments: Comment[] | { count: number; };
     reactions: {
         count: number;
-        items?: Reaction[];
+        items: Reaction[];
     };
 }
 

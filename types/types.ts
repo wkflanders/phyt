@@ -119,6 +119,14 @@ export interface FeedPost {
     };
 }
 
+export interface PostMetadata {
+    includeMap?: boolean;
+}
+
+export interface FeedPostWithMetadata extends FeedPost {
+    metadata?: PostMetadata;
+}
+
 // Utility Types
 export interface ErrorResponse {
     message: string;

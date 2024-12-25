@@ -24,7 +24,8 @@ export function PostRunModal({ visible, onClose, run }: PostRunModalProps) {
             await createPost({
                 content,
                 runId: run.id,
-                visibility: 'public'
+                visibility: 'public',
+                includeMap
             });
             onClose();
         } catch (error) {

@@ -56,7 +56,11 @@ export function Feed({ userId }: FeedProps) {
             setPosts(currentPosts =>
                 currentPosts.map(post => {
                     if (post.id === postId) {
-                        return updatedPost;
+                        return {
+                            ...post, // preserve existing post data including user
+                            comments: updatedPost.comments,
+                            reactions: updatedPost.reactions
+                        };
                     }
                     return post;
                 })
@@ -85,6 +89,7 @@ export function Feed({ userId }: FeedProps) {
             data={posts}
             renderItem={({ item: post }) => (
                 <Post
+                    key={post.id}
                     post={post}
                     onPress={() => router.push(`/post/${post.id}`)}
                 />

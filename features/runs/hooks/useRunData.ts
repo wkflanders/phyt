@@ -4,7 +4,7 @@ import { cache } from '@/lib/cache';
 import { runEvents, RUN_EVENTS, type RunCompletedEvent } from '@/lib/runEvents';
 import {
     Run, RunLocation, RunStats, DailyActivity
-} from '@/lib/types';
+} from '@/types/types';
 import type { Region } from 'react-native-maps';
 
 export function useRunData(userId: string) {

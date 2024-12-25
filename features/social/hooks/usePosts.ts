@@ -3,7 +3,7 @@ import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
 import { runEvents, RUN_EVENTS } from '@/lib/runEvents';
 import { cache } from '@/lib/cache';
-import { Reaction } from '@/lib/types';
+import { Reaction } from '@/types/types';
 
 interface CreatePostParams {
     content: string;

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { usePrivy } from '@privy-io/expo';
 import { supabase } from '@/lib/supabase';
 import { cache } from '@/lib/cache';
-import { Profile, FollowStats, ProfileData } from '@/lib/types';
+import { Profile, FollowStats, ProfileData } from '@/types/types';
 
 export function useProfile(profileId: string) {
     const { user } = usePrivy();

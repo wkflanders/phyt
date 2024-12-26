@@ -117,14 +117,7 @@ export interface FeedPost {
         count: number;
         items: Reaction[];
     };
-}
-
-export interface PostMetadata {
-    includeMap?: boolean;
-}
-
-export interface FeedPostWithMetadata extends FeedPost {
-    metadata?: PostMetadata;
+    include_map: boolean;
 }
 
 // Utility Types

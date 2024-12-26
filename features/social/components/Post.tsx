@@ -13,10 +13,9 @@ interface PostProps {
     post: FeedPost;
     isDetail?: boolean;
     onPress?: () => void;
-    includeMap?: boolean;
 }
 
-export const Post = ({ post, isDetail = false, onPress, includeMap = true }: PostProps) => {
+export const Post = ({ post, isDetail = false, onPress }: PostProps) => {
     const { addComment, toggleReaction } = usePost();
     const [showComments, setShowComments] = useState(isDetail);
     const [comment, setComment] = useState('');
@@ -114,7 +113,7 @@ export const Post = ({ post, isDetail = false, onPress, includeMap = true }: Pos
                                     <Text className="text-white text-lg font-bold">{runStats.pace}</Text>
                                 </View>
                             </View>
-                            {includeMap && (
+                            {post.include_map === true && (
                                 <View className="h-48 rounded-lg overflow-hidden">
                                     <RunMap runId={post.run.id} height={192} />
                                 </View>

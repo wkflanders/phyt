@@ -16,9 +16,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "fun.phyt.app",
-      "config": {
-        "googleMapsApiKey": "AIzaSyCXQm3sXs5PweAxLnSk8h_MQqtCpgt8rBc"
-      },
       "infoPlist": {
         "UIBackgroundModes": [
           "location",
@@ -36,9 +33,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "config": {
-        "googleMapsApiKey": "AIzaSyCXQm3sXs5PweAxLnSk8h_MQqtCpgt8rBc"
-      },
       "package": "fun.phyt.app",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
@@ -48,7 +42,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "server",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [

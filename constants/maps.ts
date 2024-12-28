@@ -1,27 +1,10 @@
-const darkMapStyle = {
-    version: 8,
-    name: 'Dark',
-    sources: {
-        'mapbox-streets': {
-            type: 'vector',
-            url: 'mapbox://mapbox.mapbox-streets-v8',
-        }
-    },
-    layers: [
-        {
-            id: 'background',
-            type: 'background',
-            paint: {
-                'background-color': '#111111',
-            }
-        },
-    ]
-};
+import MapboxGL from '@rnmapbox/maps';
+
+const darkMapStyle = MapboxGL.StyleURL.TrafficNight;
 
 export default darkMapStyle;
 
-
-// Google Maps dark style
+// Google Maps
 // const darkMapStyle = [
 //     {
 //         elementType: 'geometry',

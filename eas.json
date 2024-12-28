@@ -6,7 +6,11 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "ENVIRONMENT": "development"
+      },
+      "environment": "development"
     },
     "preview": {
       "distribution": "internal"

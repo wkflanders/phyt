@@ -31,6 +31,7 @@
     "@rnmapbox/maps": "^10.1.33",
     "@supabase/supabase-js": "^2.47.7",
     "@thirdweb-dev/react-native-adapter": "^1.5.3",
+    "@types/geojson": "^7946.0.15",
     "@types/lodash": "^4.17.13",
     "@types/react-native": "^0.73.0",
     "@walletconnect/react-native-compat": "^2.17.2",

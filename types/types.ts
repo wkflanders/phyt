@@ -78,15 +78,6 @@ export interface MonthlyActivity {
     distance: number[];
 }
 
-export interface LocationTaskOptions {
-    accuracy?: number;
-    timeInterval?: number;
-    distanceInterval?: number;
-    showsBackgroundLocationIndicator?: boolean;
-    activityType?: string;
-    runId?: string;
-}
-
 // Post Types
 export interface Comment {
     id: string;

@@ -28,6 +28,7 @@
     "@rn-primitives/slot": "^1.1.0",
     "@rn-primitives/types": "^1.1.0",
     "@rneui/themed": "^4.0.0-rc.8",
+    "@rnmapbox/maps": "^10.1.33",
     "@supabase/supabase-js": "^2.47.7",
     "@thirdweb-dev/react-native-adapter": "^1.5.3",
     "@types/lodash": "^4.17.13",

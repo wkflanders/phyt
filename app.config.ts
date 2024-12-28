@@ -20,6 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "fun.phyt.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "UIBackgroundModes": [
           "location",

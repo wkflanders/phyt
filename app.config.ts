@@ -1,6 +1,10 @@
-{
-  "expo": {
-    "name": "phyt",
+import { ConfigContext, ExpoConfig } from '@expo/config';
+import 'dotenv/config';
+
+export default ({ config }: ConfigContext): ExpoConfig => {
+  return {
+    ...config,
+    "name": "Phyt",
     "slug": "phyt",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -56,6 +60,12 @@
         }
       ],
       [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsDownloadToken": process.env.MAPBOX_DOWNLOAD_TOKEN_KEY
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
@@ -86,5 +96,5 @@
         "projectId": "fc6eb67f-ba4f-46eb-9776-cf3a34afb651"
       }
     }
-  }
-}
+  };
+};

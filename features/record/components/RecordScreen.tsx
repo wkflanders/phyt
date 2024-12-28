@@ -6,6 +6,9 @@ import { Icon } from '@/components/Icon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PostRunModal } from './PostRunModal';
 import type { Run } from '@/types/types';
+import 
+
+import MapboxGL from "@rnmapbox/maps";
 
 import icons from '@/constants/icons';
 import darkMapStyle from '@/constants/maps';

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform, StatusBar, Animated } from 'react-native';
-import MapView, { Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useRecord } from '../hooks/useRecord';
 import { Icon } from '@/components/Icon';

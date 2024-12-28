@@ -5,7 +5,9 @@ import { runEvents, RUN_EVENTS, type RunCompletedEvent } from '@/lib/runEvents';
 import {
     Run, RunLocation, RunStats, DailyActivity
 } from '@/types/types';
-import type { Region } from 'react-native-maps';
+
+// Define LngLatBoundsLike locally as it's not exported from @rnmapbox/maps
+type LngLatBoundsLike = [[number, number], [number, number]];
 
 export function useRunData(userId: string) {
     const [recentRuns, setRecentRuns] = useState<Run[]>([]);
@@ -72,7 +74,7 @@ export function useRunData(userId: string) {
         }
     }, [userId]);
 
-    const calculateRouteBounds = useCallback((locations: RunLocation[]): Region | undefined => {
+    const calculateRouteBounds = useCallback((locations: RunLocation[]): LngLatBoundsLike | undefined => {
         if (!locations?.length) return undefined;
 
         let minLat = locations[0].latitude;
@@ -87,16 +89,19 @@ export function useRunData(userId: string) {
             maxLng = Math.max(maxLng, loc.longitude);
         });
 
-        const padding = 0.1; // 10% padding
-        const latDelta = (maxLat - minLat) * (1 + padding);
-        const lngDelta = (maxLng - minLng) * (1 + padding);
+        const paddingFactor = 0.1; // 10% padding
+        const latDelta = (maxLat - minLat) * (1 + paddingFactor);
+        const lngDelta = (maxLng - minLng) * (1 + paddingFactor);
 
-        return {
-            latitude: (minLat + maxLat) / 2,
-            longitude: (minLng + maxLng) / 2,
-            latitudeDelta: Math.max(latDelta, 0.01),
-            longitudeDelta: Math.max(lngDelta, 0.01),
-        };
+        const centerLat = (minLat + maxLat) / 2;
+        const centerLng = (minLng + maxLng) / 2;
+
+        const bounds: LngLatBoundsLike = [
+            [minLng - (lngDelta - (maxLng - minLng)) / 2, minLat - (latDelta - (maxLat - minLat)) / 2],
+            [maxLng + (lngDelta - (maxLng - minLng)) / 2, maxLat + (latDelta - (maxLat - minLat)) / 2]
+        ];
+
+        return bounds;
     }, []);
 
     const getLastThreeMonthsData = useCallback(() => {

@@ -1,13 +1,25 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Platform, StatusBar, Animated } from 'react-native';
-import MapView, { Polyline, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+// RecordScreen.tsx
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    Dimensions,
+    Platform,
+    StatusBar,
+    Animated,
+    ActivityIndicator,
+    Alert,
+} from 'react-native';
+import { FeatureCollection, Geometry, GeoJsonProperties } from 'geojson';
 import * as Location from 'expo-location';
+import MapboxGL from '@rnmapbox/maps';
 import { useRecord } from '../hooks/useRecord';
 import { Icon } from '@/components/Icon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PostRunModal } from './PostRunModal';
 import type { Run } from '@/types/types';
-
 import icons from '@/constants/icons';
 import darkMapStyle from '@/constants/maps';
 
@@ -20,9 +32,9 @@ interface RecordScreenProps {
 }
 
 export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
-    const mapRef = useRef<MapView>(null);
+    const mapRef = useRef<MapboxGL.MapView>(null);
+    const cameraRef = useRef<MapboxGL.Camera>(null);
     const slideAnim = useRef(new Animated.Value(0)).current;
-    const intervalRef = useRef<NodeJS.Timeout>();
     const [showPostModal, setShowPostModal] = useState(false);
     const [completedRun, setCompletedRun] = useState<Run | null>(null);
 
@@ -40,38 +52,41 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
         formatDuration,
         calculateAverageSpeed,
         calculateDuration,
-        currentRun
+        currentRun,
+        locations, // Assuming useRecord provides a flat array of locations
     } = useRecord();
 
     const [duration, setDuration] = useState('00:00:00');
-    const [speed, setSpeed] = useState('0.0 km/h');
-    const [distance, setDistance] = useState('0.00 km');
+    const [speed, setSpeed] = useState('0.0 mph');
+    const [distance, setDistance] = useState('0.00 mi');
 
-    const flatLocations = segments.flat();
+    const flatLocations = locations; // Already a flat array from useRecord
 
     useEffect(() => {
         Animated.spring(slideAnim, {
             toValue: isRecording && currentRun ? 1 : 0,
-            useNativeDriver: false,
+            useNativeDriver: true,
             tension: 20,
             friction: 7,
         }).start();
     }, [isRecording, currentRun]);
 
-    const [initialRegion, setInitialRegion] = useState<Region>({
-        latitude: 37.78825,
-        longitude: -122.4324,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
+    const [initialCamera, setInitialCamera] = useState({
+        centerCoordinate: [-122.4324, 37.78825], // Default coordinates
+        zoomLevel: 14,
+        animationDuration: 1000,
     });
     const [isLoadingLocation, setIsLoadingLocation] = useState(true);
     const [locationError, setLocationError] = useState<string | null>(null);
 
+    /**
+     * Fetch and set the initial location of the user.
+     */
     useEffect(() => {
         const getInitialLocation = async () => {
             try {
                 setIsLoadingLocation(true);
-                const { status } = await Location.requestForegroundPermissionsAsync();
+                const { status } = await Location.getForegroundPermissionsAsync();
                 if (status !== 'granted') {
                     setLocationError('Permission to access location was denied');
                     return;
@@ -81,15 +96,22 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                     accuracy: Location.Accuracy.Balanced,
                 });
 
-                const region: Region = {
-                    latitude: location.coords.latitude,
-                    longitude: location.coords.longitude,
-                    latitudeDelta: 0.005,
-                    longitudeDelta: 0.005,
-                };
+                const coordinate: [number, number] = [
+                    location.coords.longitude,
+                    location.coords.latitude,
+                ];
 
-                setInitialRegion(region);
-                mapRef.current?.animateToRegion(region, 1000);
+                setInitialCamera({
+                    centerCoordinate: coordinate,
+                    zoomLevel: 16,
+                    animationDuration: 1000,
+                });
+
+                cameraRef.current?.setCamera({
+                    centerCoordinate: coordinate,
+                    zoomLevel: 16,
+                    animationDuration: 1000,
+                });
             } catch (err) {
                 setLocationError('Failed to get location');
                 console.error(err);
@@ -101,88 +123,93 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
         getInitialLocation();
     }, []);
 
+    /**
+     * Center the map on the latest location.
+     */
     useEffect(() => {
-        if (flatLocations.length > 0 && mapRef.current) {
+        if (flatLocations.length > 0 && cameraRef.current) {
             const lastLocation = flatLocations[flatLocations.length - 1];
-            mapRef.current.animateToRegion({
-                latitude: lastLocation.latitude,
-                longitude: lastLocation.longitude,
-                latitudeDelta: 0.005,
-                longitudeDelta: 0.005,
-            }, 1000);
+            const coordinate: [number, number] = [
+                lastLocation.longitude,
+                lastLocation.latitude,
+            ];
+            cameraRef.current.setCamera({
+                centerCoordinate: coordinate,
+                zoomLevel: 16,
+                animationDuration: 1000,
+            });
         }
     }, [flatLocations]);
 
+    /**
+     * Update stats using data from useRecord hook.
+     * Removed setInterval for better performance.
+     */
     useEffect(() => {
-        const updateStats = () => {
-            if (isRecording && currentRun && !isPaused) {
-                // Normal running state: update stats every second
-                const totalDistance = calculateTotalDistance(flatLocations);
-                // Convert kilometers to miles (1 km = 0.621371 miles)
-                const milesDistance = (totalDistance / 1000 * 0.621371).toFixed(2);
-                const currentDuration = formatDuration(currentRun.started_at);
-                // Convert km/h to mph (1 km/h = 0.621371 mph)
-                const currentSpeedVal = (calculateAverageSpeed(totalDistance, calculateDuration(currentRun.started_at)) * 3.6 * 0.621371).toFixed(1);
+        if (isRecording && currentRun) {
+            const totalDistanceMeters = calculateTotalDistance();
+            const totalDistanceMiles = (totalDistanceMeters * 0.000621371).toFixed(2);
+            const currentDuration = formatDuration(currentRun.started_at);
+            const avgSpeedMph = calculateAverageSpeed(totalDistanceMeters, calculateDuration(currentRun.started_at)).toFixed(1);
 
-                setDuration(currentDuration);
-                setDistance(`${milesDistance} mi`);
-                setSpeed(`${currentSpeedVal} mph`);
+            setDuration(currentDuration);
+            setDistance(`${totalDistanceMiles} mi`);
+            setSpeed(`${avgSpeedMph} mph`);
+        } else if (isRecording && isPaused && currentRun) {
+            const totalDistanceMeters = calculateTotalDistance();
+            const totalDistanceMiles = (totalDistanceMeters * 0.000621371).toFixed(2);
+            const currentDuration = formatDuration(currentRun.started_at);
 
-            } else if (isRecording && isPaused && currentRun) {
-                // Paused state: Only set once and do not update afterwards
-                const totalDistance = calculateTotalDistance(flatLocations);
-                const milesDistance = (totalDistance / 1000 * 0.621371).toFixed(2);
-                const currentDuration = formatDuration(currentRun.started_at);
-
-                setDuration(currentDuration);
-                setDistance(`${milesDistance} mi`);
-                // Speed remains whatever it was last set to before pausing
-            } else {
-                // Not recording or no run: reset to defaults
-                setDuration('00:00:00');
-                setDistance('0.00 mi');
-                setSpeed('0.0 mph');
-            }
-        };
-
-        // Clear any previous intervals
-        if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-        }
-
-        if (isRecording && currentRun && !isPaused) {
-            // If running and not paused, update stats every second
-            updateStats();
-            intervalRef.current = setInterval(updateStats, 1000);
+            setDuration(currentDuration);
+            setDistance(`${totalDistanceMiles} mi`);
+            // Speed remains unchanged when paused
         } else {
-            // If paused or not running, just do a single update and no interval
-            updateStats();
+            setDuration('00:00:00');
+            setDistance('0.00 mi');
+            setSpeed('0.0 mph');
         }
+    }, [
+        isRecording,
+        isPaused,
+        currentRun,
+        flatLocations,
+        formatDuration,
+        calculateTotalDistance,
+        calculateAverageSpeed,
+        calculateDuration,
+    ]);
 
-        return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-            }
-        };
-    }, [isRecording, isPaused, currentRun, flatLocations, formatDuration, calculateTotalDistance, calculateAverageSpeed, calculateDuration]);
-
-    const handleMainButton = (): void => {
-        if (!hasFullPermissions) return;
+    /**
+     * Handle main button actions: Start, Pause, Resume
+     */
+    const handleMainButton = useCallback((): void => {
+        if (!hasFullPermissions) {
+            Alert.alert(
+                'Permissions Required',
+                'Please enable location permissions in your device settings to use this feature.',
+                [{ text: 'OK' }]
+            );
+            return;
+        }
 
         if (!isRecording) {
-            // Start the run
             startRecording();
         } else if (isRecording && !isPaused) {
-            // Pause the run
             pauseRecording();
         }
-    };
+    }, [hasFullPermissions, isRecording, isPaused, startRecording, pauseRecording]);
 
-    const handleResume = () => {
+    /**
+     * Handle resuming the run
+     */
+    const handleResume = useCallback(() => {
         resumeRecording();
-    };
+    }, [resumeRecording]);
 
-    const handleFinish = async () => {
+    /**
+     * Handle finishing the run
+     */
+    const handleFinish = useCallback(async () => {
         try {
             const finishedRun = await finishRecording();
             if (finishedRun) {
@@ -190,73 +217,141 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                 setShowPostModal(true);
             }
         } catch (error) {
+            Alert.alert('Error', 'An error occurred while finishing the run.');
             console.error('Error finishing run:', error);
         }
-    };
+    }, [finishRecording]);
+
+    /**
+     * Render polylines on the map based on run segments
+     */
+    const renderPolylines = useCallback(() => {
+        if (segments.length === 0) return null;
+
+        const geojson: FeatureCollection<Geometry, GeoJsonProperties> = {
+            type: 'FeatureCollection',
+            features: segments.map((segment) => ({
+                type: 'Feature',
+                geometry: {
+                    type: 'LineString',
+                    coordinates: segment.map((loc) => [loc.longitude, loc.latitude]),
+                },
+                properties: {},
+            })),
+        };
+
+        return (
+            <MapboxGL.ShapeSource id="lineSource" shape={geojson}>
+                <MapboxGL.LineLayer
+                    id="lineLayer"
+                    style={{
+                        lineColor: '#00F6FB',
+                        lineWidth: 4,
+                        lineJoin: 'round',
+                        lineCap: 'round',
+                    }}
+                />
+            </MapboxGL.ShapeSource>
+        );
+    }, [segments]);
+
+    /**
+     * Render the main button based on recording state
+     */
+    const renderMainButton = useCallback(() => {
+        if (isRecording && isPaused) {
+            return (
+                <View style={styles.pauseButtonsRow}>
+                    <TouchableOpacity style={styles.pauseButton} onPress={handleResume}>
+                        <Text style={styles.pauseButtonText}>Continue</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.pauseButton} onPress={handleFinish}>
+                        <Text style={styles.pauseButtonText}>Finish</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        return (
+            <TouchableOpacity onPress={handleMainButton} disabled={!hasFullPermissions}>
+                <Icon
+                    icon={!isRecording ? icons.start : icons.stop}
+                    onPress={handleMainButton}
+                    label={!isRecording ? 'start' : 'pause'}
+                    size={64}
+                    color={
+                        !hasFullPermissions
+                            ? '#7D7D7D'
+                            : !isRecording
+                                ? '#00F6FB'
+                                : '#FE205D'
+                    }
+                />
+            </TouchableOpacity>
+        );
+    }, [isRecording, isPaused, hasFullPermissions, handleMainButton, handleResume, handleFinish, icons.stop]);
 
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
+                {/* Menu */}
                 <View style={styles.menuContainer}>
-                    <TouchableOpacity
-                        style={styles.leftItem}
-                        onPress={closeMenu}
-                    >
+                    <TouchableOpacity style={styles.leftItem} onPress={closeMenu}>
                         <Text style={styles.rightText}>Close</Text>
                     </TouchableOpacity>
 
                     <View style={styles.centerItem}>
-                        <Text className="font-interbold text-xl" style={styles.centerText}>Run</Text>
+                        <Text style={styles.centerText}>Run</Text>
                     </View>
 
                     <TouchableOpacity style={styles.rightItem}>
-                        <Icon
-                            icon={icons.settings}
-                            onPress={() => { }}
-                            label={'settings'}
-                        />
+                        <Icon icon={icons.settings} onPress={() => { /* Handle settings */ }} label={'settings'} />
                     </TouchableOpacity>
                 </View>
 
+                {/* Map */}
                 <View style={styles.mapWrapper}>
-                    <MapView
-                        ref={mapRef as React.RefObject<MapView>}
+                    <MapboxGL.MapView
+                        ref={mapRef}
                         style={styles.map}
-                        provider={PROVIDER_GOOGLE}
-                        initialRegion={initialRegion}
-                        showsUserLocation
-                        showsMyLocationButton
-                        customMapStyle={darkMapStyle}
-                        // Add padding so that the location button isn't covered
-                        mapPadding={{ top: 0, right: 0, bottom: 200, left: 0 }}
+                        styleURL={darkMapStyle}
+                        logoEnabled={false}
+                        compassEnabled={false}
+                        zoomEnabled={true}
+                        scrollEnabled={true}
+                        pitchEnabled={true}
+                        rotateEnabled={true}
                     >
-                        {segments.map((segment, index) => (
-                            segment.length > 1 && (
-                                <Polyline
-                                    key={index}
-                                    coordinates={segment.map(loc => ({
-                                        latitude: loc.latitude,
-                                        longitude: loc.longitude,
-                                    }))}
-                                    strokeColor="#fff"
-                                    strokeWidth={4}
-                                />
-                            )
-                        ))}
-                    </MapView>
+                        <MapboxGL.Camera
+                            ref={cameraRef}
+                            centerCoordinate={initialCamera.centerCoordinate}
+                            zoomLevel={initialCamera.zoomLevel}
+                            animationDuration={initialCamera.animationDuration}
+                        />
 
+                        {/* Display User Location */}
+                        <MapboxGL.UserLocation visible={true} />
+
+                        {/* Render polylines */}
+                        {renderPolylines()}
+                    </MapboxGL.MapView>
+
+                    {/* Loading Location */}
                     {isLoadingLocation && (
                         <View style={styles.loadingOverlay}>
-                            <Text>Getting your location...</Text>
+                            <ActivityIndicator size="large" color="#00F6FB" />
+                            <Text style={styles.loadingText}>Getting your location...</Text>
                         </View>
                     )}
 
+                    {/* Location Error */}
                     {locationError && (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>{locationError}</Text>
                         </View>
                     )}
 
+                    {/* Permissions Error */}
                     {!hasFullPermissions && (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>
@@ -265,6 +360,7 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                         </View>
                     )}
 
+                    {/* General Error */}
                     {error && (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>{error}</Text>
@@ -272,17 +368,20 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                     )}
                 </View>
 
+                {/* Stats Panel */}
                 <Animated.View
                     style={[
                         styles.statsPanel,
                         {
-                            transform: [{
-                                translateY: slideAnim.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [PANEL_HEIGHT + 100, 0]
-                                })
-                            }]
-                        }
+                            transform: [
+                                {
+                                    translateY: slideAnim.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: [PANEL_HEIGHT + 100, 0],
+                                    }),
+                                },
+                            ],
+                        },
                     ]}
                 >
                     <View style={styles.statsGrid}>
@@ -303,36 +402,13 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                     </View>
                 </Animated.View>
 
+                {/* Main Button */}
                 <View style={styles.buttonContainer}>
-                    {isRecording && isPaused ? (
-                        <View style={styles.pauseButtonsRow}>
-                            <TouchableOpacity style={styles.pauseButton} onPress={handleResume}>
-                                <Text style={styles.pauseButtonText}>Continue</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.pauseButton} onPress={handleFinish}>
-                                <Text style={styles.pauseButtonText}>Finish</Text>
-                            </TouchableOpacity>
-                        </View>
-                    ) : (
-                        <TouchableOpacity
-                            onPress={handleMainButton}
-                            disabled={!hasFullPermissions}
-                        >
-                            <Icon
-                                icon={!isRecording ? icons.start : icons.stop}
-                                onPress={handleMainButton}
-                                label={!isRecording ? 'start' : 'pause'}
-                                size={64}
-                                color={
-                                    !hasFullPermissions
-                                        ? '#7D7D7D'
-                                        : (!isRecording ? '#00F6FB' : '#FE205D')
-                                }
-                            />
-                        </TouchableOpacity>
-                    )}
+                    {renderMainButton()}
                 </View>
             </View>
+
+            {/* Post Run Modal */}
             {showPostModal && completedRun && (
                 <PostRunModal
                     visible={showPostModal}
@@ -346,6 +422,7 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
             )}
         </SafeAreaView>
     );
+
 };
 
 const styles = StyleSheet.create({
@@ -376,7 +453,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     centerText: {
-        color: '#fff'
+        color: '#fff',
+        fontFamily: 'Inter-Bold',
+        fontSize: 20,
     },
     rightItem: {
         flex: 1,
@@ -393,7 +472,6 @@ const styles = StyleSheet.create({
         zIndex: 0,
     },
     map: {
-        ...StyleSheet.absoluteFillObject,
         flex: 1,
     },
     errorContainer: {
@@ -419,6 +497,11 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         alignItems: 'center',
     },
+    loadingText: {
+        marginTop: 10,
+        color: '#000',
+        fontSize: 16,
+    },
     statsPanel: {
         position: 'absolute',
         bottom: 0,
@@ -429,6 +512,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         zIndex: 10,
+        padding: 20,
     },
     statsGrid: {
         width: '100%',

@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import MapView, { Polyline, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import MapboxGL from '@rnmapbox/maps';
 import { useRunData } from '@/features/runs/hooks/useRunData';
 import darkMapStyle from '@/constants/maps';
 import type { RunLocation } from '@/types/types';
+import { Geometry, GeoJsonProperties, Feature } from 'geojson';
+
+// Define LngLatBoundsLike locally
+type LngLatBoundsLike = [[number, number], [number, number]];
 
 interface RunMapProps {
     runId: string;
@@ -19,9 +23,18 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
     const { loadRunDetails } = useRunData(runId);
     const [runData, setRunData] = useState<{ route: RunLocation[]; } | null>(null);
     const [loading, setLoading] = useState(true);
-    const [mapRegion, setMapRegion] = useState<Region | undefined>();
+    const [mapBounds, setMapBounds] = useState<LngLatBoundsLike | undefined>();
 
-    const calculateRouteBounds = (locations: RunLocation[]): Region => {
+    // Function to calculate Mapbox bounds
+    const calculateRouteBounds = (locations: RunLocation[]): LngLatBoundsLike => {
+        if (!locations.length) {
+            // Default bounds if no locations are provided
+            return [
+                [-180, -90],
+                [180, 90],
+            ];
+        }
+
         let minLat = locations[0].latitude;
         let maxLat = locations[0].latitude;
         let minLng = locations[0].longitude;
@@ -34,20 +47,23 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
             maxLng = Math.max(maxLng, loc.longitude);
         });
 
-        // Calculate the route's diagonal distance in degrees
-        const diagonalDist = Math.sqrt(
-            Math.pow(maxLat - minLat, 2) + Math.pow(maxLng - minLng, 2)
-        );
+        const paddingFactor = 0.1; // 10% padding
+        const latDelta = (maxLat - minLat) * (1 + paddingFactor);
+        const lngDelta = (maxLng - minLng) * (1 + paddingFactor);
 
-        // Dynamic padding based on route length
-        const padding = Math.max(diagonalDist * 0.2, 0.001);
+        const centerLat = (minLat + maxLat) / 2;
+        const centerLng = (minLng + maxLng) / 2;
 
-        return {
-            latitude: (minLat + maxLat) / 2,
-            longitude: (minLng + maxLng) / 2,
-            latitudeDelta: Math.max((maxLat - minLat) + padding, 0.002),
-            longitudeDelta: Math.max((maxLng - minLng) + padding, 0.002),
-        };
+        // Adjust bounds with padding
+        const paddedMinLat = minLat - (latDelta - (maxLat - minLat)) / 2;
+        const paddedMaxLat = maxLat + (latDelta - (maxLat - minLat)) / 2;
+        const paddedMinLng = minLng - (lngDelta - (maxLng - minLng)) / 2;
+        const paddedMaxLng = maxLng + (lngDelta - (maxLng - minLng)) / 2;
+
+        return [
+            [paddedMinLng, paddedMinLat],
+            [paddedMaxLng, paddedMaxLat],
+        ];
     };
 
     useEffect(() => {
@@ -57,49 +73,116 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
                 setRunData(data);
                 if (data.route && data.route.length > 0) {
                     const bounds = calculateRouteBounds(data.route);
-                    setMapRegion(bounds);
+                    setMapBounds(bounds);
                 }
             } catch (err) {
-                console.error(err);
+                console.error('Error loading run details:', err);
             } finally {
                 setLoading(false);
             }
         };
 
         loadRoute();
-    }, [runId]);
+    }, [runId, loadRunDetails]);
 
-    if (loading || !runData?.route || !mapRegion) {
+    if (loading || !runData?.route || !mapBounds) {
         return (
-            <View style={{ height, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={[styles.loadingContainer, { height }]}>
                 <ActivityIndicator color="#00F6FB" />
             </View>
         );
     }
 
-    const routeCoordinates: RouteLocation[] = runData.route.map(loc => ({
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-    }));
+    // Convert route data to GeoJSON LineString
+    const routeGeoJSON: Feature<Geometry, GeoJsonProperties> = {
+        type: 'Feature',
+        geometry: {
+            type: 'LineString',
+            coordinates: runData.route.map(loc => [loc.longitude, loc.latitude]),
+        },
+        properties: {},
+    };
 
-    const startPoint = routeCoordinates[0];
-    const endPoint = routeCoordinates[routeCoordinates.length - 1];
+    // Define start and end points for markers
+    const startPoint = runData.route[0];
+    const endPoint = runData.route[runData.route.length - 1];
 
     return (
-        <MapView
-            provider={PROVIDER_GOOGLE}
-            style={{ height }}
-            initialRegion={mapRegion}
-            scrollEnabled={false}
-            zoomEnabled={false}
-            customMapStyle={darkMapStyle}
-            mapPadding={{ top: 10, right: 10, bottom: 10, left: 10 }}
-        >
-            <Polyline
-                coordinates={routeCoordinates}
-                strokeColor="#00F6FB"
-                strokeWidth={3}
-            />
-        </MapView>
+        <View style={{ height }}>
+            <MapboxGL.MapView
+                style={styles.map}
+                styleURL={darkMapStyle} // Ensure darkMapStyle is a valid Mapbox style URL or JSON
+                logoEnabled={false}
+                attributionEnabled={false}
+            >
+                {/* Camera to fit the route bounds */}
+                {mapBounds && (
+                    <MapboxGL.Camera
+                        bounds={{
+                            ne: mapBounds[1],
+                            sw: mapBounds[0],
+                        }}
+                        animationDuration={1000}
+                        animationMode="flyTo"
+                    />
+                )}
+
+                {/* Render the route as a polyline */}
+                <MapboxGL.ShapeSource id="routeSource" shape={routeGeoJSON}>
+                    <MapboxGL.LineLayer
+                        id="routeFill"
+                        style={{
+                            lineColor: '#00F6FB',
+                            lineWidth: 3,
+                            lineCap: MapboxGL.LineJoin.Round,
+                            lineJoin: MapboxGL.LineJoin.Round,
+                        }}
+                    />
+                </MapboxGL.ShapeSource>
+
+                {/* Start Point Marker */}
+                <MapboxGL.PointAnnotation
+                    id="startPoint"
+                    coordinate={[startPoint.longitude, startPoint.latitude]}
+                >
+                    <View style={styles.startMarker} />
+                </MapboxGL.PointAnnotation>
+
+                {/* End Point Marker */}
+                <MapboxGL.PointAnnotation
+                    id="endPoint"
+                    coordinate={[endPoint.longitude, endPoint.latitude]}
+                >
+                    <View style={styles.endMarker} />
+                </MapboxGL.PointAnnotation>
+            </MapboxGL.MapView>
+        </View>
     );
 }
+
+const styles = StyleSheet.create({
+    loadingContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#000', // Optional: to match the dark map style
+    },
+    map: {
+        flex: 1,
+    },
+    startMarker: {
+        width: 12,
+        height: 12,
+        backgroundColor: '#4CAF50',
+        borderRadius: 6,
+        borderColor: '#fff',
+        borderWidth: 2,
+    },
+    endMarker: {
+        width: 12,
+        height: 12,
+        backgroundColor: '#F44336',
+        borderRadius: 6,
+        borderColor: '#fff',
+        borderWidth: 2,
+    },
+});

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import MapView, { Polyline, Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { useRunData } from '@/features/runs/hooks/useRunData';
 import darkMapStyle from '@/constants/maps';
 import type { RunLocation } from '@/types/types';

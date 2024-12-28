@@ -5,6 +5,7 @@ import { runEvents, RUN_EVENTS, type RunCompletedEvent } from '@/lib/runEvents';
 import {
     Run, RunLocation, RunStats, DailyActivity
 } from '@/types/types';
+import type { Region } from 'react-native-maps';
 
 export function useRunData(userId: string) {
     const [recentRuns, setRecentRuns] = useState<Run[]>([]);

@@ -36,7 +36,7 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
         let minLng = locations[0].longitude;
         let maxLng = locations[0].longitude;
 
-        locations.forEach(loc => {
+        locations.forEach((loc) => {
             minLat = Math.min(minLat, loc.latitude);
             maxLat = Math.max(maxLat, loc.latitude);
             minLng = Math.min(minLng, loc.longitude);
@@ -47,10 +47,6 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
         const latDelta = (maxLat - minLat) * (1 + paddingFactor);
         const lngDelta = (maxLng - minLng) * (1 + paddingFactor);
 
-        const centerLat = (minLat + maxLat) / 2;
-        const centerLng = (minLng + maxLng) / 2;
-
-        // Adjust bounds with padding
         const paddedMinLat = minLat - (latDelta - (maxLat - minLat)) / 2;
         const paddedMaxLat = maxLat + (latDelta - (maxLat - minLat)) / 2;
         const paddedMinLng = minLng - (lngDelta - (maxLng - minLng)) / 2;
@@ -66,7 +62,7 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
         const loadRoute = async () => {
             try {
                 const data = await loadRunDetails(runId);
-                if (data.route.length === 0) {
+                if (!data.route || data.route.length === 0) {
                     console.warn('No route data found for runId:', runId);
                 }
                 setRunData(data);
@@ -84,6 +80,7 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
         loadRoute();
     }, [runId, loadRunDetails]);
 
+    // Show loading if data not available yet
     if (loading || !runData?.route || !mapBounds) {
         return (
             <View style={[styles.loadingContainer, { height }]}>
@@ -93,25 +90,22 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
         );
     }
 
-    if (runData.route.length < 2) {
-        return (
-            <View style={[styles.loadingContainer, { height }]}>
-                <Text style={styles.errorText}>Not enough data to display the run.</Text>
-            </View>
-        );
+    // If there's only one location, we can't draw a line, but we can mark it on the map
+    const hasMultiplePoints = runData.route.length >= 2;
+
+    // Create a minimal GeoJSON line only if there are >=2 points
+    let routeGeoJSON: Feature<Geometry, GeoJsonProperties> | null = null;
+    if (hasMultiplePoints) {
+        routeGeoJSON = {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: runData.route.map((loc) => [loc.longitude, loc.latitude]),
+            },
+            properties: {},
+        };
     }
 
-    // Convert route data to GeoJSON LineString
-    const routeGeoJSON: Feature<Geometry, GeoJsonProperties> = {
-        type: 'Feature',
-        geometry: {
-            type: 'LineString',
-            coordinates: runData.route.map(loc => [loc.longitude, loc.latitude]),
-        },
-        properties: {},
-    };
-
-    // Define start and end points for markers
     const startPoint = runData.route[0];
     const endPoint = runData.route[runData.route.length - 1];
 
@@ -122,11 +116,12 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
                 styleURL={darkMapStyle}
                 logoEnabled={false}
                 attributionEnabled={false}
-                zoomEnabled={false}        // Disable zooming
-                scrollEnabled={false}      // Disable panning
-                pitchEnabled={false}       // Disable pitch
-                rotateEnabled={false}      // Disable rotation
-                compassEnabled={false}     // Hide compass
+                zoomEnabled={false}
+                scrollEnabled={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+                compassEnabled={false}
+                onPress={() => { }}
             >
                 {/* Camera to fit the route bounds */}
                 {mapBounds && (
@@ -140,35 +135,44 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
                     />
                 )}
 
-                {/* Render the route as a polyline */}
-                <MapboxGL.ShapeSource id="routeSource" shape={routeGeoJSON}>
-                    <MapboxGL.LineLayer
-                        id="routeFill"
-                        style={{
-                            lineColor: '#00F6FB',
-                            lineWidth: 3,
-                            lineCap: MapboxGL.LineJoin.Round,
-                            lineJoin: MapboxGL.LineJoin.Round,
-                        }}
-                    />
-                </MapboxGL.ShapeSource>
+                {/* Render the route if multiple points exist */}
+                {hasMultiplePoints && routeGeoJSON && (
+                    <MapboxGL.ShapeSource id="routeSource" shape={routeGeoJSON}>
+                        <MapboxGL.LineLayer
+                            id="routeFill"
+                            style={{
+                                lineColor: '#00F6FB',
+                                lineWidth: 3,
+                                lineCap: MapboxGL.LineJoin.Round,
+                                lineJoin: MapboxGL.LineJoin.Round,
+                            }}
+                        />
+                    </MapboxGL.ShapeSource>
+                )}
 
-                {/* Start Point Marker */}
-                <MapboxGL.PointAnnotation
-                    id="startPoint"
-                    coordinate={[startPoint.longitude, startPoint.latitude]}
-                >
-                    <View style={styles.startMarker} />
-                </MapboxGL.PointAnnotation>
+                {/* Start Point Marker (first location) */}
+                {startPoint && (
+                    <MapboxGL.PointAnnotation
+                        id="startPoint"
+                        coordinate={[startPoint.longitude, startPoint.latitude]}
+                    >
+                        <View style={styles.startMarker} />
+                    </MapboxGL.PointAnnotation>
+                )}
 
-                {/* End Point Marker */}
-                <MapboxGL.PointAnnotation
-                    id="endPoint"
-                    coordinate={[endPoint.longitude, endPoint.latitude]}
-                >
-                    <View style={styles.endMarker} />
-                </MapboxGL.PointAnnotation>
+                {/* End Point Marker (last location) */}
+                {/* If there's only one point, startPoint === endPoint but we can still display it */}
+                {endPoint && (
+                    <MapboxGL.PointAnnotation
+                        id="endPoint"
+                        coordinate={[endPoint.longitude, endPoint.latitude]}
+                    >
+                        <View style={styles.endMarker} />
+                    </MapboxGL.PointAnnotation>
+                )}
             </MapboxGL.MapView>
+            <View style={StyleSheet.absoluteFill} pointerEvents="none" />
+
         </View>
     );
 }

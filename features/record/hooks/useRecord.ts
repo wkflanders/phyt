@@ -219,27 +219,29 @@ export const useRecord = () => {
     if (!hasPermissions) return;
 
     try {
-      // Insert new run into Supabase
+      // 1. Create a new run in Supabase
       const { data: run, error: runError } = await supabase
         .from('runs')
-        .insert([{
-          started_at: new Date().toISOString(),
-          status: 'in_progress',
-          user_id: user.id,
-        }])
+        .insert([
+          {
+            started_at: new Date().toISOString(),
+            status: 'in_progress',
+            user_id: user.id,
+          },
+        ])
         .select()
         .single();
 
       if (runError) throw runError;
 
-      // Emit run started event
+      // 2. Emit run started event
       runEvents.emit(RUN_EVENTS.RUN_STARTED, {
         runId: run.id,
         userId: user.id,
-        started_at: run.started_at
+        started_at: run.started_at,
       });
 
-      // Update state
+      // 3. Update local state
       setCurrentRun(run);
       setSegments([[]]);
       setIsRecording(true);
@@ -249,10 +251,47 @@ export const useRecord = () => {
       setTotalDistance(0);
       prevLocationRef.current = null;
 
-      // Persist the run ID using AsyncStorage
+      // 4. Save run ID in AsyncStorage
       await AsyncStorage.setItem(CURRENT_RUN_ID_KEY, run.id);
 
-      // Start background location updates
+      // 5. Force at least one location record
+      //    If the user doesn’t move at all, we still get one location in run_locations
+      try {
+        const currentPosition = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        const initialLocation: RunLocation = {
+          run_id: run.id,
+          latitude: currentPosition.coords.latitude,
+          longitude: currentPosition.coords.longitude,
+          altitude: currentPosition.coords.altitude,
+          timestamp: Math.floor(currentPosition.timestamp),
+          speed: currentPosition.coords.speed,
+        };
+
+        // Insert the initial location directly into Supabase
+        const { error: insertError } = await supabase
+          .from('run_locations')
+          .insert([initialLocation]);
+
+        if (insertError) {
+          console.error('Error inserting initial location:', insertError);
+        }
+
+        // Also update local segments array so we see the location in the UI
+        setSegments(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1].push(initialLocation);
+          return updated;
+        });
+
+        prevLocationRef.current = initialLocation;
+      } catch (locError) {
+        console.warn('Could not get initial location:', locError);
+      }
+
+      // 6. Start background location updates
       const backgroundStatus = await Location.getBackgroundPermissionsAsync();
       if (backgroundStatus.granted) {
         await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, LOCATION_SETTINGS);
@@ -260,7 +299,7 @@ export const useRecord = () => {
         console.warn('Background permissions not granted. Running in foreground only.');
       }
 
-      // Start foreground location subscription
+      // 7. Start foreground location subscription
       locationSubscription.current = await Location.watchPositionAsync(
         LOCATION_SETTINGS,
         (location) => {
@@ -273,7 +312,7 @@ export const useRecord = () => {
             speed: location.coords.speed,
           };
 
-          setSegments(prev => {
+          setSegments((prev) => {
             const updated = [...prev];
             if (justResumedRef.current) {
               justResumedRef.current = false;
@@ -290,12 +329,11 @@ export const useRecord = () => {
               newLocation.latitude,
               newLocation.longitude
             );
-            setTotalDistance(prev => prev + incrementalDistance);
+            setTotalDistance((prev) => prev + incrementalDistance);
           }
           prevLocationRef.current = newLocation;
         }
       );
-
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start recording');
       console.error('Error starting recording:', err);

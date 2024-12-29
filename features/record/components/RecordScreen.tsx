@@ -1,4 +1,3 @@
-// RecordScreen.tsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
     View,
@@ -37,6 +36,7 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
     const slideAnim = useRef(new Animated.Value(0)).current;
     const [showPostModal, setShowPostModal] = useState(false);
     const [completedRun, setCompletedRun] = useState<Run | null>(null);
+    const statsIntervalRef = useRef<NodeJS.Timeout>();
 
     const {
         isRecording,
@@ -53,14 +53,14 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
         calculateAverageSpeed,
         calculateDuration,
         currentRun,
-        locations, // Assuming useRecord provides a flat array of locations
+        locations,
     } = useRecord();
 
     const [duration, setDuration] = useState('00:00:00');
     const [speed, setSpeed] = useState('0.0 mph');
     const [distance, setDistance] = useState('0.00 mi');
 
-    const flatLocations = locations; // Already a flat array from useRecord
+    const flatLocations = locations;
 
     useEffect(() => {
         Animated.spring(slideAnim, {
@@ -72,16 +72,14 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
     }, [isRecording, currentRun]);
 
     const [initialCamera, setInitialCamera] = useState({
-        centerCoordinate: [-122.4324, 37.78825], // Default coordinates
+        centerCoordinate: [-122.4324, 37.78825],
         zoomLevel: 14,
         animationDuration: 1000,
     });
     const [isLoadingLocation, setIsLoadingLocation] = useState(true);
     const [locationError, setLocationError] = useState<string | null>(null);
 
-    /**
-     * Fetch and set the initial location of the user.
-     */
+    // Initialize map with user's location
     useEffect(() => {
         const getInitialLocation = async () => {
             try {
@@ -123,11 +121,9 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
         getInitialLocation();
     }, []);
 
-    /**
-     * Center the map on the latest location.
-     */
+    // Center map on latest location
     useEffect(() => {
-        if (flatLocations.length > 0 && cameraRef.current) {
+        if (flatLocations.length > 0 && cameraRef.current && isRecording && !isPaused) {
             const lastLocation = flatLocations[flatLocations.length - 1];
             const coordinate: [number, number] = [
                 lastLocation.longitude,
@@ -139,49 +135,65 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                 animationDuration: 1000,
             });
         }
-    }, [flatLocations]);
+    }, [flatLocations, isRecording, isPaused]);
 
-    /**
-     * Update stats using data from useRecord hook.
-     * Removed setInterval for better performance.
-     */
+    // Update stats (duration, speed, distance) periodically
     useEffect(() => {
-        if (isRecording && currentRun) {
-            const totalDistanceMeters = calculateTotalDistance();
-            const totalDistanceMiles = (totalDistanceMeters * 0.000621371).toFixed(2);
-            const currentDuration = formatDuration(currentRun.started_at);
-            const avgSpeedMph = calculateAverageSpeed(totalDistanceMeters, calculateDuration(currentRun.started_at)).toFixed(1);
+        const updateStats = () => {
+            if (isRecording && currentRun) {
+                const totalDistanceMeters = calculateTotalDistance();
+                const totalDistanceMiles = (totalDistanceMeters * 0.000621371).toFixed(2);
+                const currentDuration = formatDuration(currentRun.started_at);
 
-            setDuration(currentDuration);
-            setDistance(`${totalDistanceMiles} mi`);
-            setSpeed(`${avgSpeedMph} mph`);
-        } else if (isRecording && isPaused && currentRun) {
-            const totalDistanceMeters = calculateTotalDistance();
-            const totalDistanceMiles = (totalDistanceMeters * 0.000621371).toFixed(2);
-            const currentDuration = formatDuration(currentRun.started_at);
+                // Convert speed from m/s to mph
+                const speedMetersPerSecond = calculateAverageSpeed(
+                    totalDistanceMeters,
+                    calculateDuration(currentRun.started_at)
+                );
+                const speedMph = (speedMetersPerSecond * 2.23694).toFixed(1);
 
-            setDuration(currentDuration);
-            setDistance(`${totalDistanceMiles} mi`);
-            // Speed remains unchanged when paused
-        } else {
-            setDuration('00:00:00');
-            setDistance('0.00 mi');
-            setSpeed('0.0 mph');
+                if (!isPaused) {
+                    setDuration(currentDuration);
+                    setDistance(`${totalDistanceMiles} mi`);
+                    setSpeed(`${speedMph} mph`);
+                }
+            } else {
+                setDuration('00:00:00');
+                setDistance('0.00 mi');
+                setSpeed('0.0 mph');
+            }
+        };
+
+        // Clear any existing interval
+        if (statsIntervalRef.current) {
+            clearInterval(statsIntervalRef.current);
         }
+
+        // Start new interval if recording and not paused
+        if (isRecording && !isPaused) {
+            updateStats(); // Initial update
+            statsIntervalRef.current = setInterval(updateStats, 1000);
+        } else {
+            // Single update for paused state
+            updateStats();
+        }
+
+        // Cleanup interval on unmount or state change
+        return () => {
+            if (statsIntervalRef.current) {
+                clearInterval(statsIntervalRef.current);
+            }
+        };
     }, [
         isRecording,
         isPaused,
         currentRun,
-        flatLocations,
-        formatDuration,
         calculateTotalDistance,
+        formatDuration,
         calculateAverageSpeed,
         calculateDuration,
     ]);
 
-    /**
-     * Handle main button actions: Start, Pause, Resume
-     */
     const handleMainButton = useCallback((): void => {
         if (!hasFullPermissions) {
             Alert.alert(
@@ -199,16 +211,10 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
         }
     }, [hasFullPermissions, isRecording, isPaused, startRecording, pauseRecording]);
 
-    /**
-     * Handle resuming the run
-     */
     const handleResume = useCallback(() => {
         resumeRecording();
     }, [resumeRecording]);
 
-    /**
-     * Handle finishing the run
-     */
     const handleFinish = useCallback(async () => {
         try {
             const finishedRun = await finishRecording();
@@ -222,9 +228,6 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
         }
     }, [finishRecording]);
 
-    /**
-     * Render polylines on the map based on run segments
-     */
     const renderPolylines = useCallback(() => {
         if (segments.length === 0) return null;
 
@@ -255,9 +258,6 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
         );
     }, [segments]);
 
-    /**
-     * Render the main button based on recording state
-     */
     const renderMainButton = useCallback(() => {
         if (isRecording && isPaused) {
             return (
@@ -289,12 +289,11 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                 />
             </TouchableOpacity>
         );
-    }, [isRecording, isPaused, hasFullPermissions, handleMainButton, handleResume, handleFinish, icons.stop]);
+    }, [isRecording, isPaused, hasFullPermissions, handleMainButton, handleResume, handleFinish]);
 
     return (
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
-                {/* Menu */}
                 <View style={styles.menuContainer}>
                     <TouchableOpacity style={styles.leftItem} onPress={closeMenu}>
                         <Text style={styles.rightText}>Close</Text>
@@ -305,11 +304,14 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                     </View>
 
                     <TouchableOpacity style={styles.rightItem}>
-                        <Icon icon={icons.settings} onPress={() => { /* Handle settings */ }} label={'settings'} />
+                        <Icon
+                            icon={icons.settings}
+                            onPress={() => { }}
+                            label={'settings'}
+                        />
                     </TouchableOpacity>
                 </View>
 
-                {/* Map */}
                 <View style={styles.mapWrapper}>
                     <MapboxGL.MapView
                         ref={mapRef}
@@ -329,14 +331,11 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                             animationDuration={initialCamera.animationDuration}
                         />
 
-                        {/* Display User Location */}
                         <MapboxGL.UserLocation visible={true} />
 
-                        {/* Render polylines */}
                         {renderPolylines()}
                     </MapboxGL.MapView>
 
-                    {/* Loading Location */}
                     {isLoadingLocation && (
                         <View style={styles.loadingOverlay}>
                             <ActivityIndicator size="large" color="#00F6FB" />
@@ -344,14 +343,12 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                         </View>
                     )}
 
-                    {/* Location Error */}
                     {locationError && (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>{locationError}</Text>
                         </View>
                     )}
 
-                    {/* Permissions Error */}
                     {!hasFullPermissions && (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>
@@ -360,7 +357,6 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                         </View>
                     )}
 
-                    {/* General Error */}
                     {error && (
                         <View style={styles.errorContainer}>
                             <Text style={styles.errorText}>{error}</Text>
@@ -368,7 +364,6 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                     )}
                 </View>
 
-                {/* Stats Panel */}
                 <Animated.View
                     style={[
                         styles.statsPanel,
@@ -402,13 +397,11 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                     </View>
                 </Animated.View>
 
-                {/* Main Button */}
                 <View style={styles.buttonContainer}>
                     {renderMainButton()}
                 </View>
             </View>
 
-            {/* Post Run Modal */}
             {showPostModal && completedRun && (
                 <PostRunModal
                     visible={showPostModal}
@@ -422,7 +415,6 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
             )}
         </SafeAreaView>
     );
-
 };
 
 const styles = StyleSheet.create({

@@ -1,5 +1,6 @@
+// RunMap.tsx
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import MapboxGL from '@rnmapbox/maps';
 import { useRunData } from '@/features/runs/hooks/useRunData';
 import darkMapStyle from '@/constants/maps';
@@ -14,13 +15,8 @@ interface RunMapProps {
     height?: number;
 }
 
-interface RouteLocation {
-    latitude: number;
-    longitude: number;
-}
-
 export function RunMap({ runId, height = 300 }: RunMapProps) {
-    const { loadRunDetails } = useRunData(runId);
+    const { loadRunDetails, error } = useRunData(runId);
     const [runData, setRunData] = useState<{ route: RunLocation[]; } | null>(null);
     const [loading, setLoading] = useState(true);
     const [mapBounds, setMapBounds] = useState<LngLatBoundsLike | undefined>();
@@ -70,6 +66,9 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
         const loadRoute = async () => {
             try {
                 const data = await loadRunDetails(runId);
+                if (data.route.length === 0) {
+                    console.warn('No route data found for runId:', runId);
+                }
                 setRunData(data);
                 if (data.route && data.route.length > 0) {
                     const bounds = calculateRouteBounds(data.route);
@@ -89,6 +88,15 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
         return (
             <View style={[styles.loadingContainer, { height }]}>
                 <ActivityIndicator color="#00F6FB" />
+                {error && <Text style={styles.errorText}>{error}</Text>}
+            </View>
+        );
+    }
+
+    if (runData.route.length < 2) {
+        return (
+            <View style={[styles.loadingContainer, { height }]}>
+                <Text style={styles.errorText}>Not enough data to display the run.</Text>
             </View>
         );
     }
@@ -111,9 +119,14 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
         <View style={{ height }}>
             <MapboxGL.MapView
                 style={styles.map}
-                styleURL={darkMapStyle} // Ensure darkMapStyle is a valid Mapbox style URL or JSON
+                styleURL={darkMapStyle}
                 logoEnabled={false}
                 attributionEnabled={false}
+                zoomEnabled={false}        // Disable zooming
+                scrollEnabled={false}      // Disable panning
+                pitchEnabled={false}       // Disable pitch
+                rotateEnabled={false}      // Disable rotation
+                compassEnabled={false}     // Hide compass
             >
                 {/* Camera to fit the route bounds */}
                 {mapBounds && (
@@ -184,5 +197,10 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         borderColor: '#fff',
         borderWidth: 2,
+    },
+    errorText: {
+        color: '#fff',
+        textAlign: 'center',
+        marginTop: 10,
     },
 });

@@ -1,6 +1,5 @@
-// RunMap.tsx
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-native';
 import MapboxGL from '@rnmapbox/maps';
 import { useRunData } from '@/features/runs/hooks/useRunData';
 import darkMapStyle from '@/constants/maps';
@@ -24,11 +23,7 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
     // Function to calculate Mapbox bounds
     const calculateRouteBounds = (locations: RunLocation[]): LngLatBoundsLike => {
         if (!locations.length) {
-            // Default bounds if no locations are provided
-            return [
-                [-180, -90],
-                [180, 90],
-            ];
+            return [[-180, -90], [180, 90]];
         }
 
         let minLat = locations[0].latitude;
@@ -43,7 +38,7 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
             maxLng = Math.max(maxLng, loc.longitude);
         });
 
-        const paddingFactor = 0.1; // 10% padding
+        const paddingFactor = 0.1;
         const latDelta = (maxLat - minLat) * (1 + paddingFactor);
         const lngDelta = (maxLng - minLng) * (1 + paddingFactor);
 
@@ -80,7 +75,6 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
         loadRoute();
     }, [runId, loadRunDetails]);
 
-    // Show loading if data not available yet
     if (loading || !runData?.route || !mapBounds) {
         return (
             <View style={[styles.loadingContainer, { height }]}>
@@ -90,11 +84,9 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
         );
     }
 
-    // If there's only one location, we can't draw a line, but we can mark it on the map
     const hasMultiplePoints = runData.route.length >= 2;
-
-    // Create a minimal GeoJSON line only if there are >=2 points
     let routeGeoJSON: Feature<Geometry, GeoJsonProperties> | null = null;
+
     if (hasMultiplePoints) {
         routeGeoJSON = {
             type: 'Feature',
@@ -109,70 +101,77 @@ export function RunMap({ runId, height = 300 }: RunMapProps) {
     const startPoint = runData.route[0];
     const endPoint = runData.route[runData.route.length - 1];
 
+    // Add pointer-events: none for web platform
+    const webStyles = Platform.select({
+        web: { pointerEvents: 'none' as const },
+        default: {}
+    });
+
     return (
         <View style={{ height }}>
-            <MapboxGL.MapView
-                style={styles.map}
-                styleURL={darkMapStyle}
-                logoEnabled={false}
-                attributionEnabled={false}
-                zoomEnabled={false}
-                scrollEnabled={false}
-                pitchEnabled={false}
-                rotateEnabled={false}
-                compassEnabled={false}
-                onPress={() => { }}
-            >
-                {/* Camera to fit the route bounds */}
-                {mapBounds && (
-                    <MapboxGL.Camera
-                        bounds={{
-                            ne: mapBounds[1],
-                            sw: mapBounds[0],
-                        }}
-                        animationDuration={1000}
-                        animationMode="flyTo"
-                    />
-                )}
-
-                {/* Render the route if multiple points exist */}
-                {hasMultiplePoints && routeGeoJSON && (
-                    <MapboxGL.ShapeSource id="routeSource" shape={routeGeoJSON}>
-                        <MapboxGL.LineLayer
-                            id="routeFill"
-                            style={{
-                                lineColor: '#00F6FB',
-                                lineWidth: 3,
-                                lineCap: MapboxGL.LineJoin.Round,
-                                lineJoin: MapboxGL.LineJoin.Round,
+            <View style={[styles.mapWrapper, webStyles]} pointerEvents="none">
+                <MapboxGL.MapView
+                    style={styles.map}
+                    styleURL={darkMapStyle}
+                    logoEnabled={false}
+                    attributionEnabled={false}
+                    zoomEnabled={false}
+                    scrollEnabled={false}
+                    pitchEnabled={false}
+                    rotateEnabled={false}
+                    compassEnabled={false}
+                    scaleBarEnabled={false}
+                    onPress={() => null}
+                    logoPosition={{ top: -9999, right: -9999 }}     // <— Provide both top and right
+                    attributionPosition={{ top: -9999, right: -9999 }}
+                >
+                    {mapBounds && (
+                        <MapboxGL.Camera
+                            bounds={{
+                                ne: mapBounds[1],
+                                sw: mapBounds[0],
                             }}
+                            animationDuration={1000}
+                            animationMode="flyTo"
+                            maxZoomLevel={16}
+                            minZoomLevel={1}
+                            zoomLevel={14}
                         />
-                    </MapboxGL.ShapeSource>
-                )}
+                    )}
 
-                {/* Start Point Marker (first location) */}
-                {startPoint && (
-                    <MapboxGL.PointAnnotation
-                        id="startPoint"
-                        coordinate={[startPoint.longitude, startPoint.latitude]}
-                    >
-                        <View style={styles.startMarker} />
-                    </MapboxGL.PointAnnotation>
-                )}
+                    {hasMultiplePoints && routeGeoJSON && (
+                        <MapboxGL.ShapeSource id="routeSource" shape={routeGeoJSON}>
+                            <MapboxGL.LineLayer
+                                id="routeFill"
+                                style={{
+                                    lineColor: '#00F6FB',
+                                    lineWidth: 3,
+                                    lineCap: MapboxGL.LineJoin.Round,
+                                    lineJoin: MapboxGL.LineJoin.Round,
+                                }}
+                            />
+                        </MapboxGL.ShapeSource>
+                    )}
 
-                {/* End Point Marker (last location) */}
-                {/* If there's only one point, startPoint === endPoint but we can still display it */}
-                {endPoint && (
-                    <MapboxGL.PointAnnotation
-                        id="endPoint"
-                        coordinate={[endPoint.longitude, endPoint.latitude]}
-                    >
-                        <View style={styles.endMarker} />
-                    </MapboxGL.PointAnnotation>
-                )}
-            </MapboxGL.MapView>
-            <View style={StyleSheet.absoluteFill} pointerEvents="none" />
+                    {startPoint && (
+                        <MapboxGL.PointAnnotation
+                            id="startPoint"
+                            coordinate={[startPoint.longitude, startPoint.latitude]}
+                        >
+                            <View style={styles.startMarker} />
+                        </MapboxGL.PointAnnotation>
+                    )}
 
+                    {endPoint && (
+                        <MapboxGL.PointAnnotation
+                            id="endPoint"
+                            coordinate={[endPoint.longitude, endPoint.latitude]}
+                        >
+                            <View style={styles.endMarker} />
+                        </MapboxGL.PointAnnotation>
+                    )}
+                </MapboxGL.MapView>
+            </View>
         </View>
     );
 }
@@ -181,7 +180,11 @@ const styles = StyleSheet.create({
     loadingContainer: {
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#000', // Optional: to match the dark map style
+        backgroundColor: '#000',
+    },
+    mapWrapper: {
+        flex: 1,
+        overflow: 'hidden',
     },
     map: {
         flex: 1,

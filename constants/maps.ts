@@ -1,8 +1,9 @@
 import MapboxGL from '@rnmapbox/maps';
 
-const darkMapStyle = MapboxGL.StyleURL.TrafficNight;
+const darkMapStyle = MapboxGL.StyleURL.Dark;
+const trafficMapStyle = MapboxGL.StyleURL.TrafficNight;
 
-export default darkMapStyle;
+export { darkMapStyle, trafficMapStyle };
 
 // Google Maps
 // const darkMapStyle = [

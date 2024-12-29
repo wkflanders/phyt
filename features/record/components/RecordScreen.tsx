@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PostRunModal } from './PostRunModal';
 import type { Run } from '@/types/types';
 import icons from '@/constants/icons';
-import darkMapStyle from '@/constants/maps';
+import { trafficMapStyle } from '@/constants/maps';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const MAP_HEIGHT = SCREEN_HEIGHT * (2.8 / 4);
@@ -316,7 +316,7 @@ export const RecordScreen = ({ closeMenu }: RecordScreenProps) => {
                     <MapboxGL.MapView
                         ref={mapRef}
                         style={styles.map}
-                        styleURL={darkMapStyle}
+                        styleURL={trafficMapStyle}
                         logoEnabled={false}
                         compassEnabled={false}
                         zoomEnabled={true}

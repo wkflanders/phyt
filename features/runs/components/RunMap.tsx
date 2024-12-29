@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-native';
 import MapboxGL from '@rnmapbox/maps';
 import { useRunData } from '@/features/runs/hooks/useRunData';
-import darkMapStyle from '@/constants/maps';
+import { darkMapStyle } from '@/constants/maps';
 import type { RunLocation } from '@/types/types';
 import { Geometry, GeoJsonProperties, Feature } from 'geojson';
 
